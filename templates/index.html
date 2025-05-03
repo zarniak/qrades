@@ -23,6 +23,7 @@
     {% endif %}
 
     {# Sprawdź, czy są jakieś dane do wyświetlenia #}
+
     {% if dane %}
         <table>
             <thead>
@@ -32,6 +33,7 @@
                     {% for key in dane[0].keys() %}
                         <th>{{ key }}</th>
                     {% endfor %}
+                         <th>qr_code</th>
                 </tr>
             </thead>
             <tbody>
@@ -39,11 +41,15 @@
                 {% for dokument in dane %}
                     <tr>
                         {# Pętla przez wartości w danym dokumencie #}
-                        {% for value in dokument.values() %}
+                        {# zeby wybrac wartosc z listy to trzeba przekonwertowac na liste #}
+                        {% set wartosci_lista = dokument.values() | list %}
+                        {% for value in wartosci_lista %}
                             <td>{{ value }}</td>
                         {% endfor %}
+                            <td><img src="http://127.0.0.1:5000/qr/{{ wartosci_lista[1] }}"></td>
                     </tr>
                 {% endfor %}
+
             </tbody>
         </table>
         <p>Wyświetlono {{ dane | length }} dokumentów.</p>

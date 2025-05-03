@@ -1,11 +1,16 @@
 # 1. Zaimportuj potrzebną klasę
-from flask import Flask, render_template # Importuj Flask i funkcję do renderowania szablonów
+from flask import Flask, render_template, Response # Importuj Flask i funkcję do renderowania szablonów
 from pymongo import MongoClient
 from pymongo.errors import ConnectionFailure # Do obsługi błędów połączenia
 from bson.objectid import ObjectId
 from bson.errors import InvalidId # Importujemy do obsługi błędów konwersji ObjectId
 from dotenv import load_dotenv
+from io import BytesIO
 import os
+import qrcode
+
+# 1. Zdefiniuj bazowy URL (stała część linku)
+base_url = "http://127.0.0.1:5000/" # Zmień na swój link
 
 # --- Konfiguracja ---
 # Zmień te wartości, aby pasowały do Twojej konfiguracji
@@ -95,6 +100,56 @@ def pobierz_dane_z_mongo(dynamic_route_id_obj = None):
             client.close()
     return dokumenty, error_message
 
+# Funkcja do pobierania danych z MongoDB
+def generuj_qr_code(dynamic_route_id_obj = None):
+    """Łączy się z MongoDB, pobiera wszystkie dokumenty z kolekcji i je zwraca."""
+
+    pelny_url = f"{base_url}{dynamic_route_id_obj}"
+
+    # 5. Wygeneruj kod QR
+    # qrcode.QRCode() - Konfiguracja wyglądu/właściwości QR kodu
+    # version: rozmiar kodu (None = automatyczny, 1 do 40)
+    # error_correction: poziom korekcji błędów (L, M, Q, H)
+    # box_size: rozmiar pojedynczego kwadratu w pikselach
+    # border: grubość ramki wokół kodu
+    qr = qrcode.QRCode(
+        version=None,  # Automatyczny dobór wersji
+        error_correction=qrcode.constants.ERROR_CORRECT_L,  # Niski poziom korekcji błędów
+        box_size=10,
+        border=4,
+    )
+
+    # Dodaj dane (URL) do kodu QR
+    qr.add_data(pelny_url)
+    # Dopasuj rozmiar kodu (wymagane po add_data() jeśli version=None)
+    qr.make(fit=True)
+
+    # Utwórz obraz kodu QR
+    # fill_color i back_color definiują kolory kwadratów i tła
+    img = qr.make_image(fill_color="black", back_color="white")
+
+
+    # 6. Zapisz kod QR do pliku
+    # Nazwa pliku będzie zawierać zmienny parametr, żeby łatwo je zidentyfikować
+    nazwa_pliku = f"qr_codes/kod_qr_{dynamic_route_id_obj}.png"
+
+    try:
+        img.save(nazwa_pliku)
+        print(f"Zapisano: {nazwa_pliku}")
+    except Exception as e:
+        print(f"Wystąpił błąd podczas zapisu pliku {nazwa_pliku}: {e}")
+
+#    print("Wyniki agregacji:")
+#    for doc in dokumenty:
+#        print(doc)
+    #- Zapisz obraz do bufora w pamięci ---
+    buffer = BytesIO()
+    img.save(buffer, format='PNG') # Zapisz obraz do bufora jako PNG
+    buffer.seek(0) # Przewiń bufor na początek
+
+    # --- Zwróć dane obrazu jako odpowiedź HTTP ---
+    return Response(buffer.getvalue(), mimetype='image/png')
+
 # Definicja głównej trasy (route) dla strony
 @app.route('/') # Dekorator definiuje, że ta funkcja obsłuży żądania do głównego adresu ('/')
 def index():
@@ -116,6 +171,22 @@ def get_ascends_by_route(route_id_str):
         # Renderuj szablon HTML, przekazując mu pobrane dane i ewentualny błąd
         # Flask automatycznie szuka szablonów w folderze 'templates'
         return render_template('index.html', dane=dane_z_bazy, error=blad)
+     except InvalidId:
+        print(f"Błąd: '{route_id_str}' nie jest prawidłowym ObjectId.")
+        # Tutaj obsłuż błąd - np. zwróć błąd 400 w aplikacji webowej
+        exit() # Na potrzeby przykładu zakończ działanie skryptu
+
+@app.route('/qr/<route_id_str>') # Dekorator definiuje, że ta funkcja obsłuży żądania do głównego adresu ('/')
+def get_qr_by_route(route_id_str):
+    # --- Konwersja stringa route_id na ObjectId ---
+     try:
+        dynamic_route_id_obj = ObjectId(route_id_str)
+        # Pobierz dane przy każdym żądaniu strony
+
+
+        # Renderuj szablon HTML, przekazując mu pobrane dane i ewentualny błąd
+        # Flask automatycznie szuka szablonów w folderze 'templates'
+        return generuj_qr_code(dynamic_route_id_obj)
      except InvalidId:
         print(f"Błąd: '{route_id_str}' nie jest prawidłowym ObjectId.")
         # Tutaj obsłuż błąd - np. zwróć błąd 400 w aplikacji webowej
