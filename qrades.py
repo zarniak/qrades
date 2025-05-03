@@ -4,7 +4,7 @@ from pymongo import MongoClient
 from pymongo.errors import ConnectionFailure # Do obsługi błędów połączenia
 from dotenv import load_dotenv
 import os
-
+#zmiana
 # --- Konfiguracja ---
 # Zmień te wartości, aby pasowały do Twojej konfiguracji
 load_dotenv()
