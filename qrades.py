@@ -2,9 +2,13 @@
 from flask import Flask, render_template # Importuj Flask i funkcję do renderowania szablonów
 from pymongo import MongoClient
 from pymongo.errors import ConnectionFailure # Do obsługi błędów połączenia
+from dotenv import load_dotenv
+import os
 
 # --- Konfiguracja ---
 # Zmień te wartości, aby pasowały do Twojej konfiguracji
+load_dotenv()
+CONNECTION_STRING = os.getenv("CONNECTION_STRING1")
 NAZWA_BAZY_DANYCH = "qrades"          # Zastąp nazwą swojej bazy danych
 NAZWA_KOLEKCJI = "routes"       # Zastąp nazwą swojej kolekcji
 # --------------------
