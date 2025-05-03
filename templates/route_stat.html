@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Wykres Ocen dla Trasy {{ route_name }}</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* Opcjonalnie: styl dla kontenera wykresu, aby kontrolować rozmiar */
+        #chartContainer {
+            width: 600px; /* Ustaw szerokość kontenera */
+            height: 400px; /* Ustaw wysokość kontenera */
+            margin: 20px auto; /* Wyśrodkuj kontener */
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        /* Opcjonalny styl dla gwiazdek */
+        .star-rating {
+            display: inline-block; /* Kontener, żeby gwiazdki były obok siebie */
+            color: gold; /* Kolor wypełnionych gwiazdek */
+            font-size: 1.2em; /* Rozmiar gwiazdek */
+            margin-right: 10px;
+        }
+        .star-rating i {
+            /* Dodatkowe style dla ikon, jeśli potrzebne */
+        }
+        .average-score-text {
+             font-size: 1em; /* Rozmiar tekstu z oceną */
+             vertical-align: middle; /* Wyrównanie tekstu z gwiazdkami */
+        }
+    </style>
+</head>
+<body>
+<h1>Ocena dla Trasy: {{ average_review }}</h1>
+
+<h1>Szczegóły Trasy: {{ route_name }}</h1>
+    <p>ID Trasy: {{ route_id }}</p>
+
+    <h2>Średnia Ocena Recenzji</h2>
+
+    {# Sprawdź, czy średnia ocena istnieje i jest liczbą #}
+    {% if average_review is not none %}
+
+        {# Oblicz zaokrągloną ocenę do najbliższej połówki #}
+        {# Przykład: 4.3 -> 4.5, 3.8 -> 4.0, 4.7 -> 5.0 #}
+        {# (average_review * 2) zaokrągla do najbliższego int, potem / 2.0 daje .0 lub .5 #}
+        {% set rounded_score = (average_review * 2) | round / 2.0 %}
+        {% set max_stars = 5 %} {# Całkowita liczba gwiazdek w systemie #}
+
+        <div class="star-rating">
+            {# Pętla przez 5 gwiazdek #}
+            {% for i in range(max_stars) %}
+                {% set current_star_threshold = i + 1 %} {# Próg dla danej gwiazdki (1, 2, 3, 4, 5) #}
+
+                {% if current_star_threshold <= rounded_score %}
+                    {# Wyświetl pełną gwiazdkę, jeśli zaokrąglona ocena jest większa lub równa progowi #}
+                    <i class="fas fa-star"></i> {# fas = Font Awesome Solid #}
+                {% elif (current_star_threshold - 0.5) <= rounded_score and rounded_score < current_star_threshold %}
+                    {# Wyświetl pół gwiazdkę, jeśli zaokrąglona ocena jest między progiem a pół kroku poniżej #}
+                    {# Ta logika jest trochę bardziej precyzyjna dla pół-gwiazdek #}
+                     <i class="fas fa-star-half-alt"></i> {# fas = Font Awesome Solid #}
+                {% else %}
+                    {# W przeciwnym razie wyświetl pustą gwiazdkę #}
+                    <i class="far fa-star"></i> {# far = Font Awesome Regular #}
+                {% endif %}
+            {% endfor %}
+
+            {# Opcjonalnie: wyświetl wartość numeryczną obok gwiazdek #}
+            <span class="average-score-text">
+                 ({{ average_review | float | round(2) }} / {{ max_stars }})
+            </span>
+        </div>
+
+    {% else %}
+        <p>Brak dostępnej średniej oceny (brak danych lub recenzji z oceną numeryczną).</p>
+    {% endif %}
+
+    {# --- Tutaj możesz dodać inne treści strony, np. wykres ocen z poprzedniej odpowiedzi --- #}
+    {# Przykład, jeśli przekazujesz dane do wykresu: #}
+    {% if grade_labels and grade_data %}
+        <h2>Rozkład Ocen Szczegółowych</h2>
+        <div id="chartContainer">
+            <canvas id="myGradeChart"></canvas>
+        </div>
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> {# Upewnij się, że Chart.js jest załadowany #}
+        <script>
+            const gradeLabels = {{ grade_labels | tojson }};
+            const gradeData = {{ grade_data | tojson }};
+            const ctxChart = document.getElementById('myGradeChart').getContext('2d');
+            const gradeChart = new Chart(ctxChart, { /* ... konfiguracja wykresu ... */ });
+        </script>
+    {% endif %}
+
+
+    <h1>Wykres Rozkładu Ocen dla Trasy: {{ route_name }}</h1>
+
+    <div id="chartContainer">
+        <canvas id="myGradeChart"></canvas>
+    </div>
+
+    <script>
+        // Dane przekazane z Flask. Jinja2 wstawi tutaj dane Pythona jako tablice JavaScript.
+        // Filtr | tojson jest kluczowy - konwertuje listy Pythona na poprawny format JSON/JS array.
+        // Te zmienne 'labels' i 'data' odpowiadają zmiennym 'etykiety' i 'wartosci' z Flask
+        const labels = {{ etykiety | tojson }}; // Np. [2, 3, 4, 5]
+        const data = {{ wartosci | tojson }};   // Np. [1, 2, 4, 3] (liczność dla ocen 2, 3, 4, 5)
+
+        // Pobierz kontekst rysowania 2D z elementu canvas
+        const ctx = document.getElementById('myGradeChart').getContext('2d');
+
+        // Utwórz nowy wykres Chart.js
+        const myGradeChart = new Chart(ctx, {
+            type: 'bar', // Typ wykresu: słupkowy
+            data: {
+                labels: labels, // Etykiety dla osi X (oceny)
+                datasets: [{
+                    label: 'Liczba ocen', // Etykieta zestawu danych
+                    data: data, // Wartości dla osi Y (liczność)
+                     backgroundColor: [ // Kolory słupków (możesz dostosować)
+                        'rgba(255, 99, 132, 0.6)',
+                        'rgba(255, 159, 64, 0.6)',
+                        'rgba(255, 205, 86, 0.6)',
+                        'rgba(75, 192, 192, 0.6)',
+                        'rgba(54, 162, 235, 0.6)',
+                        'rgba(153, 102, 255, 0.6)',
+                        'rgba(201, 203, 207, 0.6)'
+                    ],
+                    borderColor: [ // Kolory obramowań słupków
+                        'rgb(255, 99, 132)',
+                        'rgb(255, 159, 64)',
+                        'rgb(255, 205, 86)',
+                        'rgb(75, 192, 192)',
+                        'rgb(54, 162, 235)',
+                        'rgb(153, 102, 255)',
+                        'rgb(201, 203, 207)'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true, // Wykres dostosowuje się do rozmiaru kontenera
+                maintainAspectRatio: false, // Umożliwia kontrolowanie rozmiaru przez CSS kontenera div#chartContainer
+                scales: {
+                    y: { // Konfiguracja osi Y
+                        beginAtZero: true, // Oś Y zaczyna się od zera
+                        title: { // Tytuł osi Y
+                            display: true,
+                            text: 'Liczba'
+                        },
+                         ticks: { // Ustawienia ticków na osi Y
+                             stepSize: 1, // Jeśli liczby są całkowite, krok co 1
+                             precision: 0 // Bez miejsc dziesiętnych
+                         }
+                    },
+                    x: { // Konfiguracja osi X
+                        title: { // Tytuł osi X
+                            display: true,
+                            text: 'Ocena'
+                        }
+                    }
+                },
+                plugins: {
+                    title: { // Tytuł wykresu
+                        display: true,
+                        text: 'Rozkład Ocen dla Trasy'
+                    },
+                     legend: { // Konfiguracja legendy
+                        display: false // Ukryj legendę, jeśli jest tylko jeden zestaw danych
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
