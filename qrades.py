@@ -217,7 +217,7 @@ def index():
     return render_template('index.html', dane=dane_z_bazy, error=blad)
 
 @app.route('/<route_id_str>') # Dekorator definiuje, że ta funkcja obsłuży żądania do głównego adresu ('/')
-def get_ascends_by_route(route_id_str):
+def ascends_by_route(route_id_str):
     # --- Konwersja stringa route_id na ObjectId ---
      try:
         dynamic_route_id_obj = ObjectId(route_id_str)
@@ -229,7 +229,7 @@ def get_ascends_by_route(route_id_str):
 
         ocena_drogi, blad = statystyka_oceny_drogi(dynamic_route_id_obj)
 
-        return render_template('route.html', etykiety=etykiety, wartosci=wartosci, average_review=ocena_drogi[0].get('average_review'), error=blad)
+        return render_template('route.html', etykiety=etykiety, wartosci=wartosci, average_review=ocena_drogi[0].get('average_review'), initial_data={'route_id': ObjectId(route_id_str)}, error=blad)
      except InvalidId:
         print(f"Błąd: '{route_id_str}' nie jest prawidłowym ObjectId.")
         # Tutaj obsłuż błąd - np. zwróć błąd 400 w aplikacji webowej
@@ -245,13 +245,6 @@ def get_qr_by_route(route_id_str):
         print(f"Błąd: '{route_id_str}' nie jest prawidłowym ObjectId.")
         # Tutaj obsłuż błąd - np. zwróć błąd 400 w aplikacji webowej
         exit() # Na potrzeby przykładu zakończ działanie skryptu
-
-# Obsługuje GET (wyświetlenie formularza) i POST (przetwarzanie danych)
-@app.route('/add_ascend/<route_id_str>', methods=['GET'])
-def add_ascend_get(route_id_str):
-    # Metoda GET - wyświetl formularz
-    # Wyświetl pusty formularz przy pierwszym wejściu lub po przekierowaniu
-    return render_template('add_ascend.html', initial_data={'route_id': ObjectId(route_id_str)})
 
 # Obsługuje GET (wyświetlenie formularza) i POST (przetwarzanie danych)
 @app.route('/add_ascend', methods=['POST'])
