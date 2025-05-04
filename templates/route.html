@@ -77,6 +77,7 @@
     </style>
 </head>
 <body>
+    <h2><a href="{{ url_for('index') }}">Powrót do strony głównej</a></h2>
     <h2>Średnia Ocena Recenzji</h2>
 
     {# Sprawdź, czy średnia ocena istnieje i jest liczbą #}
@@ -226,13 +227,59 @@
             {# value="{{ initial_data.route_id | default('', true) }}" zapamiętuje wprowadzone dane po błędzie #}
         </div>
         <div>
-            <label for="grade">Ocena:</label>
-            <input type="text" id="grade" name="grade" required value="{{ initial_data.grade | default('', true) }}">
+            {# Główna etykieta dla całej grupy radio buttonów #}
+            <label>Ocena:</label>
+
+            {# Pamiętaj o zdefiniowaniu WSZYSTKICH możliwych opcji ocen #}
+
+            {# Opcja 1: Ocena 6a #}
+            <input type="radio" id="grade_6a" name="grade" value="6a"
+                   {% if initial_data.grade == '6a' %}checked{% endif %} {# Zaznacz, jeśli '6a' było wcześniej wybrane #}
+                   required> {# Pole jest wymagane - zaznaczamy tylko jeden z grupy jako required #}
+            <label for="grade_6a">6a</label>
+
+            {# Opcja 2: Ocena 6b #}
+            <input type="radio" id="grade_6b" name="grade" value="6b"
+                   {% if initial_data.grade == '6b' %}checked{% endif %}> {# Nie powtarzamy required na kolejnych z tej grupy #}
+            <label for="grade_6b">6b</label>
+
+            {# Opcja 3: Ocena 6c #}
+            <input type="radio" id="grade_6c" name="grade" value="6c"
+                   {% if initial_data.grade == '6c' %}checked{% endif %}>
+            <label for="grade_6c">6c</label>
+
+            {# Dodaj więcej opcji ocen w ten sam sposób, np. 7a, 7b, 7c, 8a, itd. #}
+            {# Pamiętaj o unikalnym id dla każdego inputa i odpowiadającej mu etykiecie for="..." #}
+
+            {# Przykład dla kolejnej opcji #}
+            {#
+            <input type="radio" id="grade_7a" name="grade" value="7a"
+                   {% if initial_data.grade == '7a' %}checked{% endif %}>
+            <label for="grade_7a">7a</label>
+            #}
+
         </div>
 
         <div>
-            <label for="review">Recenzja (1-5):</label>
-            <input type="number" id="review" name="review" min="1" max="5" step="1" required value="{{ initial_data.review | default('', true) }}">
+            {# Główna etykieta dla całej grupy radio buttonów #}
+            <label>Recenzja (1-5):</label>
+
+            {# Pętla generująca radio buttony dla liczb od 1 do 5 #}
+            {# range(1, 6) wygeneruje sekwencję liczb 1, 2, 3, 4, 5 #}
+            {% for i in range(1, 6) %}
+                {# Tworzymy pojedynczy radio button #}
+                <input type="radio" id="review_{{ i }}" {# Unikalne ID, np. review_1, review_2, ... #}
+                       name="review" {# Wspólna nazwa dla całej grupy #}
+                       value="{{ i }}" {# Wartość przesyłana po zaznaczeniu (liczba jako string) #}
+                       {% if initial_data.review is defined and initial_data.review is not none and initial_data.review == i %}checked{% endif %} {# Zaznacz, jeśli wartość w initial_data pasuje do tej opcji #}
+                       {% if loop.first %}required{% endif %}> {# Oznacz pierwszy radio button jako wymagany (wymusza wybór z grupy) #}
+
+                {# Etykieta dla danego radio buttona #}
+                <label for="review_{{ i }}">{{ i }}</label>
+
+                {# Opcjonalnie dodaj spację lub inny separator między opcjami #}
+                {% if not loop.last %} &nbsp; {% endif %}
+            {% endfor %}
         </div>
 
         <div>

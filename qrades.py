@@ -1,4 +1,4 @@
-from flask import Flask, render_template, Response, request, redirect, url_for, flash
+from flask import Flask, render_template, Response, request, redirect, url_for, flash, make_response
 from pymongo import MongoClient
 from pymongo.errors import ConnectionFailure
 from bson.objectid import ObjectId
@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 from io import BytesIO
 import os
 import qrcode
+import datetime # Do ustawienia daty ważności cookie
 
 base_url = "http://127.0.0.1:5000/"
 
@@ -221,6 +222,8 @@ def index():
 def ascends_by_route(route_id_str):
     # --- Konwersja stringa route_id na ObjectId ---
      try:
+        user_from_cookie = request.cookies.get('user_name')
+
         dynamic_route_id_obj = ObjectId(route_id_str)
         # Pobierz dane przy każdym żądaniu strony
         trudnosci_drog, blad = statystyka_trudnosci_drogi(dynamic_route_id_obj)
@@ -230,7 +233,9 @@ def ascends_by_route(route_id_str):
 
         ocena_drogi, blad = statystyka_oceny_drogi(dynamic_route_id_obj)
 
-        return render_template('route.html', etykiety=etykiety, wartosci=wartosci, average_review=ocena_drogi[0].get('average_review'), initial_data={'route_id': ObjectId(route_id_str)}, error=blad)
+        return render_template('route.html', etykiety=etykiety, wartosci=wartosci,
+                               average_review=ocena_drogi[0].get('average_review'),
+                               initial_data={'route_id': ObjectId(route_id_str), 'user': user_from_cookie}, error=blad)
      except InvalidId:
         print(f"Błąd: '{route_id_str}' nie jest prawidłowym ObjectId.")
         # Tutaj obsłuż błąd - np. zwróć błąd 400 w aplikacji webowej
@@ -317,6 +322,10 @@ def add_ascend():
 
         client.close()
 
+        response = make_response(redirect(url_for('index')))  # Przekieruj np. na stronę główną po sukcesie
+        response.set_cookie('user_name', user, max_age=30 * 24 * 60 * 60, httponly=True,
+                            secure=True)  # secure=True w produkcji
+
         # Sprawdź, czy wstawienie się powiodło
         if result.inserted_id:
             flash(f"Wpis został pomyślnie dodany! ID: {result.inserted_id}", 'success')
@@ -335,7 +344,8 @@ def add_ascend():
 
         # --- 5. Przekieruj po pomyślnym dodaniu ---
         # Przekierowanie do tej samej trasy (metodą GET) zapobiega ponownemu wysłaniu formularza po odświeżeniu strony
-    return redirect(url_for('index'))
+
+    return response
 
 # Uruchomienie aplikacji Flask w trybie deweloperskim
 if __name__ == '__main__':
