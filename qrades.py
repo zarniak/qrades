@@ -1,5 +1,5 @@
 # 1. Zaimportuj potrzebną klasę
-from flask import Flask, render_template, Response # Importuj Flask i funkcję do renderowania szablonów
+from flask import Flask, render_template, Response, request, redirect, url_for, flash # Importuj Flask i funkcję do renderowania szablonów
 from pymongo import MongoClient
 from pymongo.errors import ConnectionFailure # Do obsługi błędów połączenia
 from bson.objectid import ObjectId
@@ -22,6 +22,10 @@ NAZWA_KOLEKCJI = "ascends"       # Zastąp nazwą swojej kolekcji
 
 # Inicjalizacja aplikacji Flask
 app = Flask(__name__)
+
+# Ustawianie SECRET_KEY jest potrzebne do działania flash messages
+app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY', 'fallback_secret_key_zmien_mnie') # Fallback na wypadek braku w .env
+
 
 def statystyka_trudnosci_drogi(dynamic_route_id_obj):
     # Definicja potoku agregacji
@@ -122,17 +126,6 @@ def wszystkie_dane_z_bazy(dynamic_route_id_obj = None):
             '$unwind': '$route_info'  # Dekonstrukcja tablicy (zakładamy 1:1 match)
         },
         {
-            '$lookup': {
-                'from': 'users',  # Kolekcja do połączenia
-                'localField': 'user_id',  # Pole z kolekcji 'ascends'
-                'foreignField': '_id',  # Pole z kolekcji 'users'
-                'as': 'user_info'  # Nazwa nowego pola zawierającego dopasowane dokumenty
-            }
-        },
-        {
-            '$unwind': '$user_info'  # Dekonstrukcja tablicy (zakładamy 1:1 match)
-        },
-        {
             '$project': {  # Etap do kształtowania wyjścia
                 '_id': 1,  # Zachowaj oryginalne _id z ascends
                 'grade': 1,  # Zachowaj pole grade z ascends
@@ -141,7 +134,6 @@ def wszystkie_dane_z_bazy(dynamic_route_id_obj = None):
                 'user_id': 1,  # Zachowaj user_id z ascends
                 'route_name': '$route_info.name',  # Pobierz name z połączonego dokumentu route
                 'route_grade': '$route_info.grade',  # Pobierz grade z połączonego dokumentu route
-                'user_name': '$user_info.name'  # Pobierz name z połączonego dokumentu user
             }
         }
     ]
@@ -266,7 +258,7 @@ def get_ascends_by_route(route_id_str):
 
         ocena = ocena_drogi[0].get('average_review')
 
-        return render_template('route_stat.html', etykiety=etykiety, wartosci=wartosci, average_review=ocena, error=blad)
+        return render_template('route.html', etykiety=etykiety, wartosci=wartosci, average_review=ocena, error=blad)
      except InvalidId:
         print(f"Błąd: '{route_id_str}' nie jest prawidłowym ObjectId.")
         # Tutaj obsłuż błąd - np. zwróć błąd 400 w aplikacji webowej
@@ -287,6 +279,114 @@ def get_qr_by_route(route_id_str):
         print(f"Błąd: '{route_id_str}' nie jest prawidłowym ObjectId.")
         # Tutaj obsłuż błąd - np. zwróć błąd 400 w aplikacji webowej
         exit() # Na potrzeby przykładu zakończ działanie skryptu
+
+# --- Trasa do dodawania nowego wpisu ---
+# Obsługuje GET (wyświetlenie formularza) i POST (przetwarzanie danych)
+@app.route('/add_ascend/<route_id_str>', methods=['GET'])
+def add_ascend_get(route_id_str):
+    #dynamic_route_id_obj = ObjectId(route_id_str)
+
+    # Metoda GET - wyświetl formularz
+    # Wyświetl pusty formularz przy pierwszym wejściu lub po przekierowaniu
+    return render_template('add_ascend.html', initial_data={'route_id': ObjectId(route_id_str)})
+
+
+# --- Trasa do dodawania nowego wpisu ---
+# Obsługuje GET (wyświetlenie formularza) i POST (przetwarzanie danych)
+@app.route('/add_ascend', methods=['POST'])
+def add_ascend():
+    #dynamic_route_id_obj = ObjectId(route_id_str)
+
+    # --- 1. Pobierz dane z formularza ---
+    route_id_str = request.form.get('route_id')
+    dynamic_route_id_obj = ObjectId(route_id_str)
+    grade = request.form.get('grade')
+    review_str = request.form.get('review')
+    user = request.form.get('user')
+
+    # --- 2. Walidacja i konwersja danych ---
+    errors = []
+
+    review_int = None
+
+    # Walidacja grade
+    if not grade or not grade.strip():
+         errors.append("Pole 'Ocena' jest wymagane.")
+    else:
+         grade = grade.strip() # Usuń białe znaki z początku/końca
+
+    # Walidacja review (zakładamy liczbę całkowitą, np. 1-5)
+    if not review_str:
+         errors.append("Pole 'Recenzja' jest wymagane.")
+    else:
+        try:
+            review_int = int(review_str) # Konwersja stringa na liczbę całkowitą
+            # Opcjonalna walidacja zakresu, np. 1-5
+            if not (1 <= review_int <= 5):
+                errors.append("Pole 'Recenzja' musi być liczbą od 1 do 5.")
+                review_int = None
+        except ValueError:
+            errors.append("Pole 'Recenzja' musi być liczbą całkowitą.")
+            review_int = None
+
+    # Walidacja user
+    if not user or not user.strip():
+        errors.append("Pole 'Użytkownik' jest wymagane.")
+    else:
+        user = user.strip() # Usuń białe znaki z początku/końca
+
+            # --- 3. Jeśli są błędy, wyświetl je ponownie w formularzu ---
+    if errors:
+        for error in errors:
+            flash(error, 'error') # Użyj flash messages do przekazania błędów
+        # Przekaż wprowadzone dane z powrotem do szablonu, żeby użytkownik nie musiał wpisywać od nowa
+        return render_template('add_ascend.html',
+                               initial_data={'route_id': ObjectId(route_id_str),
+                                             'grade': grade,
+                                             'review': review_str,
+                                             'user': user})
+
+    # --- 4. Jeśli brak błędów, przygotuj dokument i zapisz w bazie ---
+    try:
+        new_ascend_document = {
+            "route_id": ObjectId(route_id_str),
+            "grade": grade,
+            "review": review_int,     # Użyj skonwertowanej liczby całkowitej
+            "user": user
+            # _id zostanie automatycznie dodane przez MongoDB
+        }
+
+        # Wstaw dokument do kolekcji
+        client = MongoClient(CONNECTION_STRING, serverSelectionTimeoutMS=5000)  # Timeout po 5s
+        # Sprawdzenie połączenia
+        client.admin.command('ismaster')
+        db = client[NAZWA_BAZY_DANYCH]
+        collection = db[NAZWA_KOLEKCJI]
+
+        result = collection.insert_one(new_ascend_document)
+
+        client.close()
+
+        # Sprawdź, czy wstawienie się powiodło
+        if result.inserted_id:
+            flash(f"Wpis został pomyślnie dodany! ID: {result.inserted_id}", 'success')
+        else:
+             # To raczej nie powinno się zdarzyć przy insert_one, ale na wszelki wypadek
+             flash("Wystąpił błąd podczas zapisywania wpisu w bazie.", 'error')
+
+    except Exception as e:
+        flash(f"Wystąpił błąd bazy danych: {e}", 'error')
+        # Przekaż wprowadzone dane z powrotem, żeby użytkownik mógł poprawić
+        return render_template('add_ascend.html',
+                               initial_data={'route_id': ObjectId(route_id_str),
+                                             'grade': grade,
+                                             'review': review_str,
+                                             'user': user})
+
+
+        # --- 5. Przekieruj po pomyślnym dodaniu ---
+        # Przekierowanie do tej samej trasy (metodą GET) zapobiega ponownemu wysłaniu formularza po odświeżeniu strony
+    return redirect(url_for('index'))
 
 # Uruchomienie aplikacji Flask w trybie deweloperskim
 if __name__ == '__main__':
