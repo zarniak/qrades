@@ -11,7 +11,8 @@ import qrcode
 base_url = "http://127.0.0.1:5000/"
 
 load_dotenv()
-CONNECTION_STRING = os.getenv("CONNECTION_STRING")
+#CONNECTION_STRING = os.getenv("CONNECTION_STRING")
+CONNECTION_STRING = os.environ.get('CONNECTION_STRING')
 NAZWA_BAZY_DANYCH = "qrades"
 NAZWA_KOLEKCJI = "ascends"
 
