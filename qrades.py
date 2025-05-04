@@ -1,37 +1,30 @@
-# 1. Zaimportuj potrzebną klasę
-from flask import Flask, render_template, Response, request, redirect, url_for, flash # Importuj Flask i funkcję do renderowania szablonów
+from flask import Flask, render_template, Response, request, redirect, url_for, flash
 from pymongo import MongoClient
-from pymongo.errors import ConnectionFailure # Do obsługi błędów połączenia
+from pymongo.errors import ConnectionFailure
 from bson.objectid import ObjectId
-from bson.errors import InvalidId # Importujemy do obsługi błędów konwersji ObjectId
+from bson.errors import InvalidId
 from dotenv import load_dotenv
 from io import BytesIO
 import os
 import qrcode
 
-# 1. Zdefiniuj bazowy URL (stała część linku)
-base_url = "http://127.0.0.1:5000/" # Zmień na swój link
+base_url = "http://127.0.0.1:5000/"
 
-# --- Konfiguracja ---
-# Zmień te wartości, aby pasowały do Twojej konfiguracji
 load_dotenv()
-CONNECTION_STRING = os.getenv("CONNECTION_STRING1")
-NAZWA_BAZY_DANYCH = "qrades"          # Zastąp nazwą swojej bazy danych
-NAZWA_KOLEKCJI = "ascends"       # Zastąp nazwą swojej kolekcji
-# --------------------
+CONNECTION_STRING = os.getenv("CONNECTION_STRING")
+NAZWA_BAZY_DANYCH = "qrades"
+NAZWA_KOLEKCJI = "ascends"
 
 # Inicjalizacja aplikacji Flask
 app = Flask(__name__)
 
 # Ustawianie SECRET_KEY jest potrzebne do działania flash messages
-app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY', 'fallback_secret_key_zmien_mnie') # Fallback na wypadek braku w .env
-
+app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY', 'fallback_secret_key') # Fallback na wypadek braku w .env
 
 def statystyka_trudnosci_drogi(dynamic_route_id_obj):
     # Definicja potoku agregacji
     pipeline = [
         {
-            # Etap $match do filtrowania według dynamicznego route_id
             '$match': {
                 'route_id': dynamic_route_id_obj  # Używamy skonwertowanego ObjectId
             }
@@ -51,11 +44,8 @@ def statystyka_trudnosci_drogi(dynamic_route_id_obj):
             # NOWY ETAP: $group - Grupowanie według wartości pola 'grade'
             '$group': {
                 '_id': '$grade',  # Grupowanie po wartości pola 'grade' z dokumentów wchodzących do tego etapu
-                # $grade odnosi się do pola 'grade' z oryginalnego dokumentu ascends
                 'count': {'$sum': 1}  # Zliczenie liczby dokumentów w każdej grupie (dla każdej unikalnej oceny)
             }
-            # Wyjście z tego etapu będzie wyglądać np. [{'_id': 5, 'count': 10}, {'_id': 4, 'count': 7}, ...]
-            # Gdzie _id to wartość oceny, a count to jej liczność
         },
         {
             '$project': {
@@ -65,13 +55,11 @@ def statystyka_trudnosci_drogi(dynamic_route_id_obj):
         }
         }
     ]
-    return pobierz_dane_z_mongo(pipeline)
+    return pobierz_dane_z_mongo(pipeline, "ascends")
 
 def statystyka_oceny_drogi(dynamic_route_id_obj):
-    # Definicja potoku agregacji
     pipeline = [
         {
-            # Etap $match do filtrowania według dynamicznego route_id
             '$match': {
                 'route_id': dynamic_route_id_obj  # Używamy skonwertowanego ObjectId
             }
@@ -88,31 +76,22 @@ def statystyka_oceny_drogi(dynamic_route_id_obj):
             '$unwind': '$route_info'  # Dekonstrukcja tablicy (zakładamy 1:1 match)
         },
         {
-            # NOWY ETAP: $group - Grupowanie wszystkich pasujących dokumentów w jedną grupę
             '$group': {
                 '_id': 0,  # Grupowanie po null umieszcza wszystkie dokumenty w tym etapie w jednej grupie
                 'average_review': {'$avg': '$review'}  # Użycie akumulatora $avg do obliczenia średniej z pola 'review'
                 # '$review' odnosi się do pola 'review' z dokumentów wchodzących do tego etapu
             }
-            # Wyjście z tego etapu będzie jednym dokumentem np.:
-            # [{'_id': null, 'average_review': 4.5}]
         },
         {
-            # Opcjonalny etap: $project - Zmiana kształtu wyjścia dla lepszej czytelności
-            # Usuwa pole '_id': null i pozostawia tylko pole 'average_review'
             '$project': {
                 '_id': 0,  # Wykluczamy domyślne pole _id z etapu $group
                 'average_review': 1  # Zachowujemy pole 'average_review'
             }
-            # Wyjście będzie teraz jednym dokumentem np.:
-            # [{'average_review': 4.5}]
         }
     ]
-
-    return pobierz_dane_z_mongo(pipeline)
+    return pobierz_dane_z_mongo(pipeline ,"ascends")
 
 def wszystkie_dane_z_bazy(dynamic_route_id_obj = None):
-    # Definicja potoku agregacji
     pipeline = [
         {
             '$lookup': {
@@ -137,20 +116,35 @@ def wszystkie_dane_z_bazy(dynamic_route_id_obj = None):
             }
         }
     ]
-
-    if (dynamic_route_id_obj):
+    if dynamic_route_id_obj:
         pipeline.append({
             # Etap $match do filtrowania według dynamicznego route_id
             '$match': {
                 'route_id': dynamic_route_id_obj  # Używamy skonwertowanego ObjectId
             }
         })
-    return pobierz_dane_z_mongo(pipeline)
+    return pobierz_dane_z_mongo(pipeline, "ascends")
 
+def wszystkie_drogi():
+    pipeline = [
+        {
+            # Etap 2: $project - Określ, które pola mają być zwrócone i w jakiej formie
+            # '{поле: 1}' oznacza, że pole ma być włączone do wyniku (1 to true)
+            # Pola wymienione w przykładzie struktury to _id, name, grade
+            '$project': {
+                '_id': 1,  # Włącz pole _id
+                'name': 1,  # Włącz pole name
+                'grade': 1  # Włącz pole grade
+                # Jeśli chcesz wyświetlić *wszystkie* pola, a nie tylko te z przykładu,
+                # i nie wiesz z góry wszystkich nazw, możesz użyć:
+                # '$project': { $mergeObjects: '$$ROOT' } # Kopiuje cały dokument wejściowy do nowego pola, a potem...
+                # Ale do prostego wyświetlenia tych trzech pól, lepiej jawnie je wymienić.
+            }
+        }
+    ]
+    return pobierz_dane_z_mongo(pipeline, "routes")
 
-# Funkcja do pobierania danych z MongoDB
-def pobierz_dane_z_mongo(pipeline):
-    """Łączy się z MongoDB, pobiera wszystkie dokumenty z kolekcji i je zwraca."""
+def pobierz_dane_z_mongo(pipeline, kolekcja):
     client = None
     dokumenty = []
     error_message = None
@@ -159,15 +153,10 @@ def pobierz_dane_z_mongo(pipeline):
         # Sprawdzenie połączenia
         client.admin.command('ismaster')
         db = client[NAZWA_BAZY_DANYCH]
-        collection = db[NAZWA_KOLEKCJI]
-
+        collection = db[kolekcja]
 
         # Wykonanie agregacji
         dokumenty = list(collection.aggregate(pipeline))
-
-#        print("Wyniki agregacji:")
-#        for doc in dokumenty:
-#            print(doc)
 
     except ConnectionFailure:
         error_message = "Błąd: Nie można połączyć się z serwerem MongoDB. Sprawdź, czy jest uruchomiony."
@@ -180,18 +169,9 @@ def pobierz_dane_z_mongo(pipeline):
             client.close()
     return dokumenty, error_message
 
-# Funkcja do pobierania danych z MongoDB
 def generuj_qr_code(dynamic_route_id_obj = None):
-    """Łączy się z MongoDB, pobiera wszystkie dokumenty z kolekcji i je zwraca."""
-
     pelny_url = f"{base_url}{dynamic_route_id_obj}"
 
-    # 5. Wygeneruj kod QR
-    # qrcode.QRCode() - Konfiguracja wyglądu/właściwości QR kodu
-    # version: rozmiar kodu (None = automatyczny, 1 do 40)
-    # error_correction: poziom korekcji błędów (L, M, Q, H)
-    # box_size: rozmiar pojedynczego kwadratu w pikselach
-    # border: grubość ramki wokół kodu
     qr = qrcode.QRCode(
         version=None,  # Automatyczny dobór wersji
         error_correction=qrcode.constants.ERROR_CORRECT_L,  # Niski poziom korekcji błędów
@@ -208,7 +188,6 @@ def generuj_qr_code(dynamic_route_id_obj = None):
     # fill_color i back_color definiują kolory kwadratów i tła
     img = qr.make_image(fill_color="black", back_color="white")
 
-
     # 6. Zapisz kod QR do pliku
     # Nazwa pliku będzie zawierać zmienny parametr, żeby łatwo je zidentyfikować
     nazwa_pliku = f"qr_codes/kod_qr_{dynamic_route_id_obj}.png"
@@ -219,9 +198,6 @@ def generuj_qr_code(dynamic_route_id_obj = None):
     except Exception as e:
         print(f"Wystąpił błąd podczas zapisu pliku {nazwa_pliku}: {e}")
 
-#    print("Wyniki agregacji:")
-#    for doc in dokumenty:
-#        print(doc)
     #- Zapisz obraz do bufora w pamięci ---
     buffer = BytesIO()
     img.save(buffer, format='PNG') # Zapisz obraz do bufora jako PNG
@@ -234,7 +210,7 @@ def generuj_qr_code(dynamic_route_id_obj = None):
 @app.route('/') # Dekorator definiuje, że ta funkcja obsłuży żądania do głównego adresu ('/')
 def index():
     # Pobierz dane przy każdym żądaniu strony
-    dane_z_bazy, blad = wszystkie_dane_z_bazy()
+    dane_z_bazy, blad = wszystkie_drogi()
 
     # Renderuj szablon HTML, przekazując mu pobrane dane i ewentualny błąd
     # Flask automatycznie szuka szablonów w folderze 'templates'
@@ -248,17 +224,12 @@ def get_ascends_by_route(route_id_str):
         # Pobierz dane przy każdym żądaniu strony
         trudnosci_drog, blad = statystyka_trudnosci_drogi(dynamic_route_id_obj)
 
-        # Renderuj szablon HTML, przekazując mu pobrane dane i ewentualny błąd
-        # Flask automatycznie szuka szablonów w folderze 'templates'
-
         etykiety = [item['grade'] for item in trudnosci_drog]  # Lista ocen
         wartosci = [item['count'] for item in trudnosci_drog]  # Lista liczności
 
         ocena_drogi, blad = statystyka_oceny_drogi(dynamic_route_id_obj)
 
-        ocena = ocena_drogi[0].get('average_review')
-
-        return render_template('route.html', etykiety=etykiety, wartosci=wartosci, average_review=ocena, error=blad)
+        return render_template('route.html', etykiety=etykiety, wartosci=wartosci, average_review=ocena_drogi[0].get('average_review'), error=blad)
      except InvalidId:
         print(f"Błąd: '{route_id_str}' nie jest prawidłowym ObjectId.")
         # Tutaj obsłuż błąd - np. zwróć błąd 400 w aplikacji webowej
@@ -269,44 +240,30 @@ def get_qr_by_route(route_id_str):
     # --- Konwersja stringa route_id na ObjectId ---
      try:
         dynamic_route_id_obj = ObjectId(route_id_str)
-        # Pobierz dane przy każdym żądaniu strony
-
-
-        # Renderuj szablon HTML, przekazując mu pobrane dane i ewentualny błąd
-        # Flask automatycznie szuka szablonów w folderze 'templates'
         return generuj_qr_code(dynamic_route_id_obj)
      except InvalidId:
         print(f"Błąd: '{route_id_str}' nie jest prawidłowym ObjectId.")
         # Tutaj obsłuż błąd - np. zwróć błąd 400 w aplikacji webowej
         exit() # Na potrzeby przykładu zakończ działanie skryptu
 
-# --- Trasa do dodawania nowego wpisu ---
 # Obsługuje GET (wyświetlenie formularza) i POST (przetwarzanie danych)
 @app.route('/add_ascend/<route_id_str>', methods=['GET'])
 def add_ascend_get(route_id_str):
-    #dynamic_route_id_obj = ObjectId(route_id_str)
-
     # Metoda GET - wyświetl formularz
     # Wyświetl pusty formularz przy pierwszym wejściu lub po przekierowaniu
     return render_template('add_ascend.html', initial_data={'route_id': ObjectId(route_id_str)})
 
-
-# --- Trasa do dodawania nowego wpisu ---
 # Obsługuje GET (wyświetlenie formularza) i POST (przetwarzanie danych)
 @app.route('/add_ascend', methods=['POST'])
 def add_ascend():
-    #dynamic_route_id_obj = ObjectId(route_id_str)
-
     # --- 1. Pobierz dane z formularza ---
     route_id_str = request.form.get('route_id')
-    dynamic_route_id_obj = ObjectId(route_id_str)
     grade = request.form.get('grade')
     review_str = request.form.get('review')
     user = request.form.get('user')
 
     # --- 2. Walidacja i konwersja danych ---
     errors = []
-
     review_int = None
 
     # Walidacja grade
@@ -334,8 +291,7 @@ def add_ascend():
         errors.append("Pole 'Użytkownik' jest wymagane.")
     else:
         user = user.strip() # Usuń białe znaki z początku/końca
-
-            # --- 3. Jeśli są błędy, wyświetl je ponownie w formularzu ---
+    # --- 3. Jeśli są błędy, wyświetl je ponownie w formularzu ---
     if errors:
         for error in errors:
             flash(error, 'error') # Użyj flash messages do przekazania błędów
@@ -361,7 +317,7 @@ def add_ascend():
         # Sprawdzenie połączenia
         client.admin.command('ismaster')
         db = client[NAZWA_BAZY_DANYCH]
-        collection = db[NAZWA_KOLEKCJI]
+        collection = db["ascends"]
 
         result = collection.insert_one(new_ascend_document)
 
@@ -382,7 +338,6 @@ def add_ascend():
                                              'grade': grade,
                                              'review': review_str,
                                              'user': user})
-
 
         # --- 5. Przekieruj po pomyślnym dodaniu ---
         # Przekierowanie do tej samej trasy (metodą GET) zapobiega ponownemu wysłaniu formularza po odświeżeniu strony

@@ -30,11 +30,6 @@
     </style>
 </head>
 <body>
-<h1>Ocena dla Trasy: {{ average_review }}</h1>
-
-<h1>Szczegóły Trasy: {{ route_name }}</h1>
-    <p>ID Trasy: {{ route_id }}</p>
-
     <h2>Średnia Ocena Recenzji</h2>
 
     {# Sprawdź, czy średnia ocena istnieje i jest liczbą #}
@@ -63,18 +58,12 @@
                     <i class="far fa-star"></i> {# far = Font Awesome Regular #}
                 {% endif %}
             {% endfor %}
-
-            {# Opcjonalnie: wyświetl wartość numeryczną obok gwiazdek #}
-            <span class="average-score-text">
-                 ({{ average_review | float | round(2) }} / {{ max_stars }})
-            </span>
         </div>
 
     {% else %}
         <p>Brak dostępnej średniej oceny (brak danych lub recenzji z oceną numeryczną).</p>
     {% endif %}
 
-    {# --- Tutaj możesz dodać inne treści strony, np. wykres ocen z poprzedniej odpowiedzi --- #}
     {# Przykład, jeśli przekazujesz dane do wykresu: #}
     {% if grade_labels and grade_data %}
         <h2>Rozkład Ocen Szczegółowych</h2>
@@ -89,7 +78,6 @@
             const gradeChart = new Chart(ctxChart, { /* ... konfiguracja wykresu ... */ });
         </script>
     {% endif %}
-
 
     <h1>Wykres Rozkładu Ocen dla Trasy: {{ route_name }}</h1>
 
