@@ -162,7 +162,6 @@ def pobierz_dane_z_mongo(pipeline, kolekcja):
     except ConnectionFailure:
         error_message = "Błąd: Nie można połączyć się z serwerem MongoDB. Sprawdź, czy jest uruchomiony."
         print(error_message) # Logowanie błędu w konsoli serwera
-        print(CONNECTION_STRING)
     except Exception as e:
         error_message = f"Wystąpił nieoczekiwany błąd podczas pobierania danych: {e}"
         print(error_message) # Logowanie błędu
