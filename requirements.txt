@@ -3,3 +3,4 @@ pymongo
 qrcode
 Pillow
 python-dotenv
+gunicorn
