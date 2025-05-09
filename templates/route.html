@@ -74,28 +74,33 @@
           <div class="card-body">
 
               <form method="POST" class="row gy-2 gx-3 align-items-center" action="{{ url_for('add_ascend') }}">
+                <div class="row mb-4">
                   <div class="col-auto">
                     <div data-mdb-input-init class="form-outline">
                       <input type="hidden" class="form-control" id="route_id" name="route_id" required value="{{ initial_data.route_id | default('', true) }}"/>
                     </div>
                   </div>
+                </div>
 
-
-
+                <div class="row mb-4">
                   <div class="col-auto" data-mdb-input-init>
                     <div data-mdb-input-init class="form-outline">
                       <input type="text" class="form-control" id="user" name="user" required value="{{ initial_data.user | default('', true) }}"/>
                       <label class="form-label" for="user">Username</label>
                     </div>
                   </div>
+                </div>
 
+                <div class="row mb-4">
                   <div class="col-auto">
                     <div data-mdb-input-init class="form-outline">
                       <input type="text" class="form-control" id="grade" name="grade" required value="6a"/>
                       <label class="form-label" for="grade">Route grade</label>
                     </div>
                   </div>
+                </div>
 
+                <div class="row mb-4">
                   <div class="col-auto">
                     Rate:
                   </div>
@@ -118,10 +123,13 @@
                         {% if not loop.last %} &nbsp; {% endif %}
                     {% endfor %}
                   </div>
+                </div>
 
+                <div class="row mb-4">
                   <div class="col-auto">
                     <button data-mdb-ripple-init type="submit" class="btn btn-primary">Submit</button>
                   </div>
+                </div>
             </form>
 
           </div>
