@@ -36,7 +36,7 @@
                     {# zeby wybrac wartosc z listy to trzeba przekonwertowac na liste #}
                     {% set wartosci_lista = dokument.values() | list %}
                     {% for value in wartosci_lista %}
-                      <td><a href="/{{ wartosci_lista[0] }}">{{ value }}</a></td>
+                      <td><a href="route/{{ wartosci_lista[0] }}">{{ value }}</a></td>
                     {% endfor %}
                   </tr>
                 {% endfor %}

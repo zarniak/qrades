@@ -12,9 +12,6 @@
       <!-- Section: Main chart -->
       <section class="mb-4">
         <div class="card">
-          <div class="card-header py-3">
-            <h5 class="mb-0 text-center"><strong>Sales</strong></h5>
-          </div>
           <div class="card-body">
             <canvas
               data-mdb-chart-init
@@ -59,6 +56,7 @@
                             <i class="far fa-star"></i> {# far = Font Awesome Regular #}
                         {% endif %}
                     {% endfor %}
+                 | {{ average_review | round(2) }}
                 </div>
 
                 {% else %}
@@ -75,91 +73,58 @@
         <div class="card">
           <div class="card-body">
 
-              <h1>Dodaj Nowy Wpis (Ascend)</h1>
-
-                {# Wyświetlanie komunikatów flash (sukces/błąd) #}
-                {% with messages = get_flashed_messages(with_categories=true) %}
-                    {% if messages %}
-                        <ul class="flash-messages">
-                        {% for category, message in messages %}
-                            <li class="{{ category }}">{{ message }}</li>
-                        {% endfor %}
-                        </ul>
-                    {% endif %}
-                {% endwith %}
-
-                {# Formularz do dodawania wpisu #}
-                <form method="POST" action="{{ url_for('add_ascend') }}">
-                    <div>
-                        <label for="route_id">ID Trasy (ObjectId):</label>
-                        <input type="text" id="route_id" name="route_id" required value="{{ initial_data.route_id | default('', true) }}">
-                        {# value="{{ initial_data.route_id | default('', true) }}" zapamiętuje wprowadzone dane po błędzie #}
+              <form method="POST" class="row gy-2 gx-3 align-items-center" action="{{ url_for('add_ascend') }}">
+                  <div class="col-auto">
+                    <div data-mdb-input-init class="form-outline">
+                      <input type="hidden" class="form-control" id="route_id" name="route_id" required value="{{ initial_data.route_id | default('', true) }}"/>
                     </div>
-                    <div>
-                        {# Główna etykieta dla całej grupy radio buttonów #}
-                        <label>Ocena:</label>
+                  </div>
 
-                        {# Pamiętaj o zdefiniowaniu WSZYSTKICH możliwych opcji ocen #}
 
-                        {# Opcja 1: Ocena 6a #}
-                        <input type="radio" id="grade_6a" name="grade" value="6a"
-                               {% if initial_data.grade == '6a' %}checked{% endif %} {# Zaznacz, jeśli '6a' było wcześniej wybrane #}
-                               required> {# Pole jest wymagane - zaznaczamy tylko jeden z grupy jako required #}
-                        <label for="grade_6a">6a</label>
 
-                        {# Opcja 2: Ocena 6b #}
-                        <input type="radio" id="grade_6b" name="grade" value="6b"
-                               {% if initial_data.grade == '6b' %}checked{% endif %}> {# Nie powtarzamy required na kolejnych z tej grupy #}
-                        <label for="grade_6b">6b</label>
-
-                        {# Opcja 3: Ocena 6c #}
-                        <input type="radio" id="grade_6c" name="grade" value="6c"
-                               {% if initial_data.grade == '6c' %}checked{% endif %}>
-                        <label for="grade_6c">6c</label>
-
-                        {# Dodaj więcej opcji ocen w ten sam sposób, np. 7a, 7b, 7c, 8a, itd. #}
-                        {# Pamiętaj o unikalnym id dla każdego inputa i odpowiadającej mu etykiecie for="..." #}
-
-                        {# Przykład dla kolejnej opcji #}
-                        {#
-                        <input type="radio" id="grade_7a" name="grade" value="7a"
-                               {% if initial_data.grade == '7a' %}checked{% endif %}>
-                        <label for="grade_7a">7a</label>
-                        #}
-
+                  <div class="col-auto" data-mdb-input-init>
+                    <div data-mdb-input-init class="form-outline">
+                      <input type="text" class="form-control" id="user" name="user" required value="{{ initial_data.user | default('', true) }}"/>
+                      <label class="form-label" for="user">Username</label>
+                      <div class="form-helper">Type your username</div>
                     </div>
+                  </div>
 
-                    <div>
-                        {# Główna etykieta dla całej grupy radio buttonów #}
-                        <label>Recenzja (1-5):</label>
+                  <div class="col-auto">
+                    <div data-mdb-input-init class="form-outline">
+                      <input type="text" class="form-control" id="grade" name="grade" required value="6a"/>
+                      <label class="form-label" for="grade">Route grade</label>
+                      <div class="form-helper">Type your grade assessment</div>
+                    </div>
+                  </div>
 
-                        {# Pętla generująca radio buttony dla liczb od 1 do 5 #}
-                        {# range(1, 6) wygeneruje sekwencję liczb 1, 2, 3, 4, 5 #}
-                        {% for i in range(1, 6) %}
-                            {# Tworzymy pojedynczy radio button #}
-                            <input type="radio" id="review_{{ i }}" {# Unikalne ID, np. review_1, review_2, ... #}
-                                   name="review" {# Wspólna nazwa dla całej grupy #}
-                                   value="{{ i }}" {# Wartość przesyłana po zaznaczeniu (liczba jako string) #}
+                  <div class="col-auto">
+                    Rate:
+                  </div>
+
+                  <div class="col-auto">
+                    {# Pętla generująca radio buttony dla liczb od 1 do 5 #}
+                    {# range(1, 6) wygeneruje sekwencję liczb 1, 2, 3, 4, 5 #}
+                    {% for i in range(1, 6) %}
+                        {# Tworzymy pojedynczy radio button #}
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" id="review_{{ i }}" {# Unikalne ID, np. review_1, review_2, ... #}
+                                    name="review" {# Wspólna nazwa dla całej grupy #}
+                                    value="{{ i }}" {# Wartość przesyłana po zaznaczeniu (liczba jako string) #}
                                    {% if initial_data.review is defined and initial_data.review is not none and initial_data.review == i %}checked{% endif %} {# Zaznacz, jeśli wartość w initial_data pasuje do tej opcji #}
                                    {% if loop.first %}required{% endif %}> {# Oznacz pierwszy radio button jako wymagany (wymusza wybór z grupy) #}
+                                {# Etykieta dla danego radio buttona #}
+                                <label class="form-check-label" for="review_{{ i }}">{{ i }}</label>
+                        {# Opcjonalnie dodaj spację lub inny separator między opcjami #}
+                            </div>
+                        {% if not loop.last %} &nbsp; {% endif %}
+                    {% endfor %}
+                  </div>
 
-                            {# Etykieta dla danego radio buttona #}
-                            <label for="review_{{ i }}">{{ i }}</label>
-
-                            {# Opcjonalnie dodaj spację lub inny separator między opcjami #}
-                            {% if not loop.last %} &nbsp; {% endif %}
-                        {% endfor %}
-                    </div>
-
-                    <div>
-                        <label for="user">Użytkownik:</label>
-                        <input type="text" id="user" name="user" required value="{{ initial_data.user | default('', true) }}">
-                    </div>
-
-                    <div>
-                        <button type="submit">Zapisz Wpis</button>
-                    </div>
-                </form>
+                  <div class="col-auto">
+                    <button data-mdb-ripple-init type="submit" class="btn btn-primary">Submit</button>
+                  </div>
+            </form>
 
           </div>
         </div>
@@ -169,14 +134,9 @@
       <!--Section: QR code-->
       <section class="mb-4">
         <div class="card">
-          <div class="card-header text-center py-3">
-            <h5 class="mb-0 text-center">
-              <strong>Route QR code</strong>
-            </h5>
-          </div>
           <div class="card-body">
             <h5 class="mb-0 text-center">
-              <img src="https://qrades.onrender.com/qr/{{ initial_data.route_id | default('', true) }}">
+              <img src="https://qrades.onrender.com/qr/{{ initial_data.route_id | default('', true) }}" class="img-fluid">
             </h5>
           </div>
         </div>

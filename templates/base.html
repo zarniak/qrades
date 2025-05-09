@@ -13,8 +13,6 @@
   <!-- MDB -->
   {# Użyj url_for('static', filename='...') #}
   <link rel="stylesheet" href="{{ url_for('static', filename='css/mdb.min.css') }}" />
-  {# Użyj url_for('static', filename='...') #}
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}" />
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.4/Chart.min.js" integrity="sha512-d9xgZrVZpmmQlfonhQUvTR7lMPtO7NkZMkA0ABN3PHCbKA5nqylQ/yWlFAyY6hYgdF1Qh6nYiuADWwKB4C2WSw=="
     crossorigin="anonymous"></script>
@@ -23,12 +21,45 @@
 <body>
   <!--Main Navigation-->
   <header>
-    <!-- Sidebar -->
-
-    <!-- Sidebar -->
-
     <!-- Navbar -->
+     <nav class="navbar navbar-expand-lg bg-body-tertiary">
+      <!-- Container wrapper -->
+      <div class="container-fluid">
+        <!-- Toggle button -->
+        <button
+          data-mdb-collapse-init
+          class="navbar-toggler"
+          type="button"
+          data-mdb-target="#navbarLeftAlignExample"
+          aria-controls="navbarLeftAlignExample"
+          aria-expanded="false"
+          aria-label="Toggle navigation"
+        >
+          <i class="fas fa-bars"></i>
+        </button>
 
+        <!-- Collapsible wrapper -->
+        <div class="collapse navbar-collapse" id="navbarLeftAlignExample">
+          <!-- Left links -->
+          <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+            <li class="nav-item">
+              <a class="nav-link active" aria-current="page" href="https://qrades.onrender.com/">Home</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="https://qrades.onrender.com/">All data</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link disabled"
+                >Create new QR</a
+              >
+            </li>
+          </ul>
+          <!-- Left links -->
+        </div>
+        <!-- Collapsible wrapper -->
+      </div>
+      <!-- Container wrapper -->
+    </nav>
     <!-- Navbar -->
   </header>
   <!--Main Navigation-->

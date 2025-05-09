@@ -55,6 +55,14 @@ def statystyka_trudnosci_drogi(dynamic_route_id_obj):
             'grade': '$_id', # Tworzymy nowe pole 'grade' z wartości pola '_id' z poprzedniego etapu
             'count': 1 # Zachowujemy pole 'count'
         }
+        },
+        {
+            # ### NOWY ETAP: $sort - Sortowanie wyników ###
+            '$sort': {
+                'grade': 1  # Sortujemy po polu 'grade' utworzonym w poprzednim etapie
+                # 1 oznacza sortowanie rosnące (np. "4a", "5a", "6a", "6b", ...)
+                # -1 oznacza sortowanie malejące
+            }
         }
     ]
     return pobierz_dane_z_mongo(pipeline, "ascends")
@@ -218,7 +226,7 @@ def index():
     # Flask automatycznie szuka szablonów w folderze 'templates'
     return render_template('index.html', dane=dane_z_bazy, error=blad)
 
-@app.route('/<route_id_str>') # Dekorator definiuje, że ta funkcja obsłuży żądania do głównego adresu ('/')
+@app.route('/route/<route_id_str>') # Dekorator definiuje, że ta funkcja obsłuży żądania do głównego adresu ('/')
 def ascends_by_route(route_id_str):
     # --- Konwersja stringa route_id na ObjectId ---
      try:
@@ -251,10 +259,6 @@ def get_qr_by_route(route_id_str):
         print(f"Błąd: '{route_id_str}' nie jest prawidłowym ObjectId.")
         # Tutaj obsłuż błąd - np. zwróć błąd 400 w aplikacji webowej
         exit() # Na potrzeby przykładu zakończ działanie skryptu
-
-@app.route('/admin') # Dekorator definiuje, że ta funkcja obsłuży żądania do głównego adresu ('/')
-def admin():
-    return render_template('admin.html')
 
 # Obsługuje GET (wyświetlenie formularza) i POST (przetwarzanie danych)
 @app.route('/add_ascend', methods=['POST'])
@@ -326,7 +330,7 @@ def add_ascend():
 
         client.close()
 
-        response = make_response(redirect(url_for('index')))  # Przekieruj np. na stronę główną po sukcesie
+        response = make_response(redirect(url_for('ascends_by_route', route_id_str=route_id_str)))  # Przekieruj np. na stronę główną po sukcesie
         response.set_cookie('user_name', user, max_age=30 * 24 * 60 * 60, httponly=True,
                             secure=True)  # secure=True w produkcji
 
