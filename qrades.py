@@ -252,6 +252,10 @@ def get_qr_by_route(route_id_str):
         # Tutaj obsłuż błąd - np. zwróć błąd 400 w aplikacji webowej
         exit() # Na potrzeby przykładu zakończ działanie skryptu
 
+@app.route('/admin') # Dekorator definiuje, że ta funkcja obsłuży żądania do głównego adresu ('/')
+def admin():
+    return render_template('admin.html')
+
 # Obsługuje GET (wyświetlenie formularza) i POST (przetwarzanie danych)
 @app.route('/add_ascend', methods=['POST'])
 def add_ascend():

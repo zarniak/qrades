@@ -1,296 +1,188 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Wykres Ocen dla Trasy {{ route_name }}</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        /* Opcjonalnie: styl dla kontenera wykresu, aby kontrolować rozmiar */
-        #chartContainer {
-            width: 600px; /* Ustaw szerokość kontenera */
-            height: 400px; /* Ustaw wysokość kontenera */
-            margin: 20px auto; /* Wyśrodkuj kontener */
-        }
-    </style>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <style>
-        /* Opcjonalny styl dla gwiazdek */
-        .star-rating {
-            display: inline-block; /* Kontener, żeby gwiazdki były obok siebie */
-            color: gold; /* Kolor wypełnionych gwiazdek */
-            font-size: 1.2em; /* Rozmiar gwiazdek */
-            margin-right: 10px;
-        }
-        .star-rating i {
-            /* Dodatkowe style dla ikon, jeśli potrzebne */
-        }
-        .average-score-text {
-             font-size: 1em; /* Rozmiar tekstu z oceną */
-             vertical-align: middle; /* Wyrównanie tekstu z gwiazdkami */
-        }
-    </style>
-    <style>
-        /* Prosty styl do wyświetlania komunikatów */
-        .flash-messages {
-            list-style: none;
-            padding: 0;
-        }
-        .flash-messages li {
-            margin-bottom: 10px;
-            padding: 10px;
-            border: 1px solid;
-            border-radius: 4px;
-        }
-        .flash-messages li.success {
-            color: #155724;
-            background-color: #d4edda;
-            border-color: #c3e6cb;
-        }
-        .flash-messages li.error {
-            color: #721c24;
-            background-color: #f8d7da;
-            border-color: #f5c6cb;
-        }
-        label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: bold;
-        }
-        input[type="text"], input[type="number"] {
-            display: block;
-            width: 200px;
-            padding: 8px;
-            margin-bottom: 10px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-        }
-        button {
-            padding: 10px 15px;
-            background-color: #007bff;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-        button:hover {
-            background-color: #0056b3;
-        }
-    </style>
-</head>
-<body>
-    <h2><a href="{{ url_for('index') }}">Powrót do strony głównej</a></h2>
-    <h2>Średnia Ocena Recenzji</h2>
+{# ### TEN SZABLON DZIEDZICZY Z base.html ### #}
+{% extends "base.html" %}
 
-    {# Sprawdź, czy średnia ocena istnieje i jest liczbą #}
-    {% if average_review is not none %}
+{# ### DEFINIUJESZ TYLKO BLOK, KTÓRY CHCESZ ZMIENIĆ ### #}
 
-        {# Oblicz zaokrągloną ocenę do najbliższej połówki #}
-        {# Przykład: 4.3 -> 4.5, 3.8 -> 4.0, 4.7 -> 5.0 #}
-        {# (average_review * 2) zaokrągla do najbliższego int, potem / 2.0 daje .0 lub .5 #}
-        {% set rounded_score = (average_review * 2) | round / 2.0 %}
-        {% set max_stars = 5 %} {# Całkowita liczba gwiazdek w systemie #}
+{# Nadpisz blok 'title' #}
+{% block title %}QR grades - Strona Główna{% endblock %}
 
-        <div class="star-rating">
-            {# Pętla przez 5 gwiazdek #}
-            {% for i in range(max_stars) %}
-                {% set current_star_threshold = i + 1 %} {# Próg dla danej gwiazdki (1, 2, 3, 4, 5) #}
+{# Nadpisz blok 'content' główną treścią strony głównej #}
+{% block content %}
 
-                {% if current_star_threshold <= rounded_score %}
-                    {# Wyświetl pełną gwiazdkę, jeśli zaokrąglona ocena jest większa lub równa progowi #}
-                    <i class="fas fa-star"></i> {# fas = Font Awesome Solid #}
-                {% elif (current_star_threshold - 0.5) <= rounded_score and rounded_score < current_star_threshold %}
-                    {# Wyświetl pół gwiazdkę, jeśli zaokrąglona ocena jest między progiem a pół kroku poniżej #}
-                    {# Ta logika jest trochę bardziej precyzyjna dla pół-gwiazdek #}
-                     <i class="fas fa-star-half-alt"></i> {# fas = Font Awesome Solid #}
+      <!-- Section: Main chart -->
+      <section class="mb-4">
+        <div class="card">
+          <div class="card-header py-3">
+            <h5 class="mb-0 text-center"><strong>Sales</strong></h5>
+          </div>
+          <div class="card-body">
+            <canvas
+              data-mdb-chart-init
+              data-mdb-chart="bar"
+              data-mdb-dataset-label="Grades"
+              data-mdb-labels="{{ etykiety }}"
+              data-mdb-dataset-data="{{ wartosci }}"
+            ></canvas>
+          </div>
+        </div>
+      </section>
+      <!-- Section: Main chart -->
+
+     <!-- Section: Stars -->
+      <section class="mb-4">
+        <div class="card">
+          <div class="card-body">
+
+            {# Sprawdź, czy średnia ocena istnieje i jest liczbą #}
+            {% if average_review is not none %}
+
+            {# Oblicz zaokrągloną ocenę do najbliższej połówki #}
+            {# Przykład: 4.3 -> 4.5, 3.8 -> 4.0, 4.7 -> 5.0 #}
+            {# (average_review * 2) zaokrągla do najbliższego int, potem / 2.0 daje .0 lub .5 #}
+            {% set rounded_score = (average_review * 2) | round / 2.0 %}
+            {% set max_stars = 5 %} {# Całkowita liczba gwiazdek w systemie #}
+            <h5 class="mb-0 text-center">
+                <div class="star-rating">
+                    {# Pętla przez 5 gwiazdek #}
+                    {% for i in range(max_stars) %}
+                        {% set current_star_threshold = i + 1 %} {# Próg dla danej gwiazdki (1, 2, 3, 4, 5) #}
+
+                        {% if current_star_threshold <= rounded_score %}
+                            {# Wyświetl pełną gwiazdkę, jeśli zaokrąglona ocena jest większa lub równa progowi #}
+                            <i class="fas fa-star"></i> {# fas = Font Awesome Solid #}
+                        {% elif (current_star_threshold - 0.5) <= rounded_score and rounded_score < current_star_threshold %}
+                            {# Wyświetl pół gwiazdkę, jeśli zaokrąglona ocena jest między progiem a pół kroku poniżej #}
+                            {# Ta logika jest trochę bardziej precyzyjna dla pół-gwiazdek #}
+                             <i class="fas fa-star-half-alt"></i> {# fas = Font Awesome Solid #}
+                        {% else %}
+                            {# W przeciwnym razie wyświetl pustą gwiazdkę #}
+                            <i class="far fa-star"></i> {# far = Font Awesome Regular #}
+                        {% endif %}
+                    {% endfor %}
+                </div>
+
                 {% else %}
-                    {# W przeciwnym razie wyświetl pustą gwiazdkę #}
-                    <i class="far fa-star"></i> {# far = Font Awesome Regular #}
+                    <p>Brak dostępnej średniej oceny (brak danych lub recenzji z oceną numeryczną).</p>
                 {% endif %}
-            {% endfor %}
+            </h5>
+          </div>
         </div>
+      </section>
+      <!-- Section: Stars -->
 
-    {% else %}
-        <p>Brak dostępnej średniej oceny (brak danych lub recenzji z oceną numeryczną).</p>
-    {% endif %}
+     <!-- Section: Form -->
+      <section class="mb-4">
+        <div class="card">
+          <div class="card-body">
 
-    {# Przykład, jeśli przekazujesz dane do wykresu: #}
-    {% if grade_labels and grade_data %}
-        <h2>Rozkład Ocen Szczegółowych</h2>
-        <div id="chartContainer">
-            <canvas id="myGradeChart"></canvas>
+              <h1>Dodaj Nowy Wpis (Ascend)</h1>
+
+                {# Wyświetlanie komunikatów flash (sukces/błąd) #}
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        <ul class="flash-messages">
+                        {% for category, message in messages %}
+                            <li class="{{ category }}">{{ message }}</li>
+                        {% endfor %}
+                        </ul>
+                    {% endif %}
+                {% endwith %}
+
+                {# Formularz do dodawania wpisu #}
+                <form method="POST" action="{{ url_for('add_ascend') }}">
+                    <div>
+                        <label for="route_id">ID Trasy (ObjectId):</label>
+                        <input type="text" id="route_id" name="route_id" required value="{{ initial_data.route_id | default('', true) }}">
+                        {# value="{{ initial_data.route_id | default('', true) }}" zapamiętuje wprowadzone dane po błędzie #}
+                    </div>
+                    <div>
+                        {# Główna etykieta dla całej grupy radio buttonów #}
+                        <label>Ocena:</label>
+
+                        {# Pamiętaj o zdefiniowaniu WSZYSTKICH możliwych opcji ocen #}
+
+                        {# Opcja 1: Ocena 6a #}
+                        <input type="radio" id="grade_6a" name="grade" value="6a"
+                               {% if initial_data.grade == '6a' %}checked{% endif %} {# Zaznacz, jeśli '6a' było wcześniej wybrane #}
+                               required> {# Pole jest wymagane - zaznaczamy tylko jeden z grupy jako required #}
+                        <label for="grade_6a">6a</label>
+
+                        {# Opcja 2: Ocena 6b #}
+                        <input type="radio" id="grade_6b" name="grade" value="6b"
+                               {% if initial_data.grade == '6b' %}checked{% endif %}> {# Nie powtarzamy required na kolejnych z tej grupy #}
+                        <label for="grade_6b">6b</label>
+
+                        {# Opcja 3: Ocena 6c #}
+                        <input type="radio" id="grade_6c" name="grade" value="6c"
+                               {% if initial_data.grade == '6c' %}checked{% endif %}>
+                        <label for="grade_6c">6c</label>
+
+                        {# Dodaj więcej opcji ocen w ten sam sposób, np. 7a, 7b, 7c, 8a, itd. #}
+                        {# Pamiętaj o unikalnym id dla każdego inputa i odpowiadającej mu etykiecie for="..." #}
+
+                        {# Przykład dla kolejnej opcji #}
+                        {#
+                        <input type="radio" id="grade_7a" name="grade" value="7a"
+                               {% if initial_data.grade == '7a' %}checked{% endif %}>
+                        <label for="grade_7a">7a</label>
+                        #}
+
+                    </div>
+
+                    <div>
+                        {# Główna etykieta dla całej grupy radio buttonów #}
+                        <label>Recenzja (1-5):</label>
+
+                        {# Pętla generująca radio buttony dla liczb od 1 do 5 #}
+                        {# range(1, 6) wygeneruje sekwencję liczb 1, 2, 3, 4, 5 #}
+                        {% for i in range(1, 6) %}
+                            {# Tworzymy pojedynczy radio button #}
+                            <input type="radio" id="review_{{ i }}" {# Unikalne ID, np. review_1, review_2, ... #}
+                                   name="review" {# Wspólna nazwa dla całej grupy #}
+                                   value="{{ i }}" {# Wartość przesyłana po zaznaczeniu (liczba jako string) #}
+                                   {% if initial_data.review is defined and initial_data.review is not none and initial_data.review == i %}checked{% endif %} {# Zaznacz, jeśli wartość w initial_data pasuje do tej opcji #}
+                                   {% if loop.first %}required{% endif %}> {# Oznacz pierwszy radio button jako wymagany (wymusza wybór z grupy) #}
+
+                            {# Etykieta dla danego radio buttona #}
+                            <label for="review_{{ i }}">{{ i }}</label>
+
+                            {# Opcjonalnie dodaj spację lub inny separator między opcjami #}
+                            {% if not loop.last %} &nbsp; {% endif %}
+                        {% endfor %}
+                    </div>
+
+                    <div>
+                        <label for="user">Użytkownik:</label>
+                        <input type="text" id="user" name="user" required value="{{ initial_data.user | default('', true) }}">
+                    </div>
+
+                    <div>
+                        <button type="submit">Zapisz Wpis</button>
+                    </div>
+                </form>
+
+          </div>
         </div>
-        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> {# Upewnij się, że Chart.js jest załadowany #}
-        <script>
-            const gradeLabels = {{ grade_labels | tojson }};
-            const gradeData = {{ grade_data | tojson }};
-            const ctxChart = document.getElementById('myGradeChart').getContext('2d');
-            const gradeChart = new Chart(ctxChart, { /* ... konfiguracja wykresu ... */ });
-        </script>
-    {% endif %}
+      </section>
+      <!-- Section: Form -->
 
-    <h1>Wykres Rozkładu Ocen dla Trasy: {{ route_name }}</h1>
-
-    <div id="chartContainer">
-        <canvas id="myGradeChart"></canvas>
-    </div>
-
-    <script>
-        // Dane przekazane z Flask. Jinja2 wstawi tutaj dane Pythona jako tablice JavaScript.
-        // Filtr | tojson jest kluczowy - konwertuje listy Pythona na poprawny format JSON/JS array.
-        // Te zmienne 'labels' i 'data' odpowiadają zmiennym 'etykiety' i 'wartosci' z Flask
-        const labels = {{ etykiety | tojson }}; // Np. [2, 3, 4, 5]
-        const data = {{ wartosci | tojson }};   // Np. [1, 2, 4, 3] (liczność dla ocen 2, 3, 4, 5)
-
-        // Pobierz kontekst rysowania 2D z elementu canvas
-        const ctx = document.getElementById('myGradeChart').getContext('2d');
-
-        // Utwórz nowy wykres Chart.js
-        const myGradeChart = new Chart(ctx, {
-            type: 'bar', // Typ wykresu: słupkowy
-            data: {
-                labels: labels, // Etykiety dla osi X (oceny)
-                datasets: [{
-                    label: 'Liczba ocen', // Etykieta zestawu danych
-                    data: data, // Wartości dla osi Y (liczność)
-                     backgroundColor: [ // Kolory słupków (możesz dostosować)
-                        'rgba(255, 99, 132, 0.6)',
-                        'rgba(255, 159, 64, 0.6)',
-                        'rgba(255, 205, 86, 0.6)',
-                        'rgba(75, 192, 192, 0.6)',
-                        'rgba(54, 162, 235, 0.6)',
-                        'rgba(153, 102, 255, 0.6)',
-                        'rgba(201, 203, 207, 0.6)'
-                    ],
-                    borderColor: [ // Kolory obramowań słupków
-                        'rgb(255, 99, 132)',
-                        'rgb(255, 159, 64)',
-                        'rgb(255, 205, 86)',
-                        'rgb(75, 192, 192)',
-                        'rgb(54, 162, 235)',
-                        'rgb(153, 102, 255)',
-                        'rgb(201, 203, 207)'
-                    ],
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                responsive: true, // Wykres dostosowuje się do rozmiaru kontenera
-                maintainAspectRatio: false, // Umożliwia kontrolowanie rozmiaru przez CSS kontenera div#chartContainer
-                scales: {
-                    y: { // Konfiguracja osi Y
-                        beginAtZero: true, // Oś Y zaczyna się od zera
-                        title: { // Tytuł osi Y
-                            display: true,
-                            text: 'Liczba'
-                        },
-                         ticks: { // Ustawienia ticków na osi Y
-                             stepSize: 1, // Jeśli liczby są całkowite, krok co 1
-                             precision: 0 // Bez miejsc dziesiętnych
-                         }
-                    },
-                    x: { // Konfiguracja osi X
-                        title: { // Tytuł osi X
-                            display: true,
-                            text: 'Ocena'
-                        }
-                    }
-                },
-                plugins: {
-                    title: { // Tytuł wykresu
-                        display: true,
-                        text: 'Rozkład Ocen dla Trasy'
-                    },
-                     legend: { // Konfiguracja legendy
-                        display: false // Ukryj legendę, jeśli jest tylko jeden zestaw danych
-                    }
-                }
-            }
-        });
-    </script>
-    <h1>Dodaj Nowy Wpis (Ascend)</h1>
-
-    {# Wyświetlanie komunikatów flash (sukces/błąd) #}
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            <ul class="flash-messages">
-            {% for category, message in messages %}
-                <li class="{{ category }}">{{ message }}</li>
-            {% endfor %}
-            </ul>
-        {% endif %}
-    {% endwith %}
-
-    {# Formularz do dodawania wpisu #}
-    <form method="POST" action="{{ url_for('add_ascend') }}">
-        <div>
-            <label for="route_id">ID Trasy (ObjectId):</label>
-            <input type="text" id="route_id" name="route_id" required value="{{ initial_data.route_id | default('', true) }}">
-            {# value="{{ initial_data.route_id | default('', true) }}" zapamiętuje wprowadzone dane po błędzie #}
+      <!--Section: QR code-->
+      <section class="mb-4">
+        <div class="card">
+          <div class="card-header text-center py-3">
+            <h5 class="mb-0 text-center">
+              <strong>Route QR code</strong>
+            </h5>
+          </div>
+          <div class="card-body">
+            <h5 class="mb-0 text-center">
+              <img src="https://qrades.onrender.com/qr/{{ initial_data.route_id | default('', true) }}">
+            </h5>
+          </div>
         </div>
-        <div>
-            {# Główna etykieta dla całej grupy radio buttonów #}
-            <label>Ocena:</label>
+      </section>
+      <!--Section: Sales Performance KPIs-->
 
-            {# Pamiętaj o zdefiniowaniu WSZYSTKICH możliwych opcji ocen #}
+   {% endblock %}
 
-            {# Opcja 1: Ocena 6a #}
-            <input type="radio" id="grade_6a" name="grade" value="6a"
-                   {% if initial_data.grade == '6a' %}checked{% endif %} {# Zaznacz, jeśli '6a' było wcześniej wybrane #}
-                   required> {# Pole jest wymagane - zaznaczamy tylko jeden z grupy jako required #}
-            <label for="grade_6a">6a</label>
-
-            {# Opcja 2: Ocena 6b #}
-            <input type="radio" id="grade_6b" name="grade" value="6b"
-                   {% if initial_data.grade == '6b' %}checked{% endif %}> {# Nie powtarzamy required na kolejnych z tej grupy #}
-            <label for="grade_6b">6b</label>
-
-            {# Opcja 3: Ocena 6c #}
-            <input type="radio" id="grade_6c" name="grade" value="6c"
-                   {% if initial_data.grade == '6c' %}checked{% endif %}>
-            <label for="grade_6c">6c</label>
-
-            {# Dodaj więcej opcji ocen w ten sam sposób, np. 7a, 7b, 7c, 8a, itd. #}
-            {# Pamiętaj o unikalnym id dla każdego inputa i odpowiadającej mu etykiecie for="..." #}
-
-            {# Przykład dla kolejnej opcji #}
-            {#
-            <input type="radio" id="grade_7a" name="grade" value="7a"
-                   {% if initial_data.grade == '7a' %}checked{% endif %}>
-            <label for="grade_7a">7a</label>
-            #}
-
-        </div>
-
-        <div>
-            {# Główna etykieta dla całej grupy radio buttonów #}
-            <label>Recenzja (1-5):</label>
-
-            {# Pętla generująca radio buttony dla liczb od 1 do 5 #}
-            {# range(1, 6) wygeneruje sekwencję liczb 1, 2, 3, 4, 5 #}
-            {% for i in range(1, 6) %}
-                {# Tworzymy pojedynczy radio button #}
-                <input type="radio" id="review_{{ i }}" {# Unikalne ID, np. review_1, review_2, ... #}
-                       name="review" {# Wspólna nazwa dla całej grupy #}
-                       value="{{ i }}" {# Wartość przesyłana po zaznaczeniu (liczba jako string) #}
-                       {% if initial_data.review is defined and initial_data.review is not none and initial_data.review == i %}checked{% endif %} {# Zaznacz, jeśli wartość w initial_data pasuje do tej opcji #}
-                       {% if loop.first %}required{% endif %}> {# Oznacz pierwszy radio button jako wymagany (wymusza wybór z grupy) #}
-
-                {# Etykieta dla danego radio buttona #}
-                <label for="review_{{ i }}">{{ i }}</label>
-
-                {# Opcjonalnie dodaj spację lub inny separator między opcjami #}
-                {% if not loop.last %} &nbsp; {% endif %}
-            {% endfor %}
-        </div>
-
-        <div>
-            <label for="user">Użytkownik:</label>
-            <input type="text" id="user" name="user" required value="{{ initial_data.user | default('', true) }}">
-        </div>
-
-        <div>
-            <button type="submit">Zapisz Wpis</button>
-        </div>
-    </form>
-    ><img src="https://qrades.onrender.com/qr/{{ initial_data.route_id | default('', true) }}">
-</body>
-</html>
+{# Nie definiujemy innych bloków (head_extra, scripts_extra), jeśli nie są potrzebne #}
