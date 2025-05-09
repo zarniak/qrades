@@ -43,15 +43,13 @@
           <!-- Left links -->
           <ul class="navbar-nav me-auto mb-2 mb-lg-0">
             <li class="nav-item">
-              <a class="nav-link active" aria-current="page" href="https://qrades.onrender.com/">Home</a>
+              <a class="nav-link active" aria-current="page" href="{{ url_for('index') }}">Home</a>
             </li>
             <li class="nav-item">
-              <a class="nav-link" href="https://qrades.onrender.com/">All data</a>
+              <a class="nav-link" href="{{ url_for('all_data') }}">All data</a>
             </li>
             <li class="nav-item">
-              <a class="nav-link disabled"
-                >Create new QR</a
-              >
+              <a class="nav-link" href="{{ url_for('new_route') }}">New route (qr)</a>
             </li>
           </ul>
           <!-- Left links -->
@@ -77,6 +75,16 @@
     </div>
   </main>
   <!--Main layout-->
+
+<footer class="bg-primary text-white text-center text-lg-start">
+  <!-- Copyright -->
+  <div class="text-center p-3" style="background-color: rgba(0, 0, 0, 0.2);">
+    © 2025 E-mail:
+    <a class="text-white" href="mailto:zarniak@tlen.pl">zarniak@tlen.pl</a>
+  </div>
+  <!-- Copyright -->
+</footer>
+
   {# Użyj url_for('static', filename='...') #}
   <script type="text/javascript" src="{{ url_for('static', filename='js/mdb.umd.min.js') }}"></script>
 

@@ -217,7 +217,7 @@ def generuj_qr_code(dynamic_route_id_obj = None):
     return Response(buffer.getvalue(), mimetype='image/png')
 
 # Definicja głównej trasy (route) dla strony
-@app.route('/') # Dekorator definiuje, że ta funkcja obsłuży żądania do głównego adresu ('/')
+@app.route('/')  # Dekorator definiuje, że ta funkcja obsłuży żądania do głównego adresu ('/')
 def index():
     # Pobierz dane przy każdym żądaniu strony
     dane_z_bazy, blad = wszystkie_drogi()
@@ -225,6 +225,15 @@ def index():
     # Renderuj szablon HTML, przekazując mu pobrane dane i ewentualny błąd
     # Flask automatycznie szuka szablonów w folderze 'templates'
     return render_template('index.html', dane=dane_z_bazy, error=blad)
+
+@app.route('/all_data') # Dekorator definiuje, że ta funkcja obsłuży żądania do głównego adresu ('/')
+def all_data():
+    # Pobierz dane przy każdym żądaniu strony
+    dane_z_bazy, blad = wszystkie_drogi()
+
+    # Renderuj szablon HTML, przekazując mu pobrane dane i ewentualny błąd
+    # Flask automatycznie szuka szablonów w folderze 'templates'
+    return render_template('all_data.html', dane=dane_z_bazy, error=blad)
 
 @app.route('/<route_id_str>')
 @app.route('/route/<route_id_str>') # Dekorator definiuje, że ta funkcja obsłuży żądania do głównego adresu ('/')
@@ -242,8 +251,11 @@ def ascends_by_route(route_id_str):
 
         ocena_drogi, blad = statystyka_oceny_drogi(dynamic_route_id_obj)
 
+        average_review = ocena_drogi[0].get('average_review') if ocena_drogi and ocena_drogi[0].get(
+            'average_review') is not None else 3
+
         return render_template('route.html', etykiety=etykiety, wartosci=wartosci,
-                               average_review=ocena_drogi[0].get('average_review'),
+                               average_review=average_review,
                                initial_data={'route_id': ObjectId(route_id_str), 'user': user_from_cookie}, error=blad)
      except InvalidId:
         print(f"Błąd: '{route_id_str}' nie jest prawidłowym ObjectId.")
@@ -270,90 +282,84 @@ def add_ascend():
     review_str = request.form.get('review')
     user = request.form.get('user')
 
-    # --- 2. Walidacja i konwersja danych ---
-    errors = []
-    review_int = None
+    grade = grade.strip() # Usuń białe znaki z początku/końca
+    review_int = int(review_str) # Konwersja stringa na liczbę całkowitą
+    user = user.strip() # Usuń białe znaki z początku/końca
 
-    # Walidacja grade
-    if not grade or not grade.strip():
-         errors.append("Pole 'Ocena' jest wymagane.")
-    else:
-         grade = grade.strip() # Usuń białe znaki z początku/końca
+    new_ascend_document = {
+        "route_id": ObjectId(route_id_str),
+        "grade": grade,
+        "review": review_int,     # Użyj skonwertowanej liczby całkowitej
+        "user": user
+        # _id zostanie automatycznie dodane przez MongoDB
+    }
 
-    # Walidacja review (zakładamy liczbę całkowitą, np. 1-5)
-    if not review_str:
-         errors.append("Pole 'Recenzja' jest wymagane.")
-    else:
-        try:
-            review_int = int(review_str) # Konwersja stringa na liczbę całkowitą
-            # Opcjonalna walidacja zakresu, np. 1-5
-            if not (1 <= review_int <= 5):
-                errors.append("Pole 'Recenzja' musi być liczbą od 1 do 5.")
-                review_int = None
-        except ValueError:
-            errors.append("Pole 'Recenzja' musi być liczbą całkowitą.")
-            review_int = None
+    # Wstaw dokument do kolekcji
+    client = MongoClient(CONNECTION_STRING, serverSelectionTimeoutMS=5000)  # Timeout po 5s
+    # Sprawdzenie połączenia
+    client.admin.command('ismaster')
+    db = client[NAZWA_BAZY_DANYCH]
+    collection = db["ascends"]
 
-    # Walidacja user
-    if not user or not user.strip():
-        errors.append("Pole 'Użytkownik' jest wymagane.")
-    else:
-        user = user.strip() # Usuń białe znaki z początku/końca
-    # --- 3. Jeśli są błędy, wyświetl je ponownie w formularzu ---
-    if errors:
-        for error in errors:
-            flash(error, 'error') # Użyj flash messages do przekazania błędów
-        # Przekaż wprowadzone dane z powrotem do szablonu, żeby użytkownik nie musiał wpisywać od nowa
-        return render_template('add_ascend.html',
-                               initial_data={'route_id': ObjectId(route_id_str),
-                                             'grade': grade,
-                                             'review': review_str,
-                                             'user': user})
+    result = collection.insert_one(new_ascend_document)
 
-    # --- 4. Jeśli brak błędów, przygotuj dokument i zapisz w bazie ---
-    try:
-        new_ascend_document = {
-            "route_id": ObjectId(route_id_str),
-            "grade": grade,
-            "review": review_int,     # Użyj skonwertowanej liczby całkowitej
-            "user": user
-            # _id zostanie automatycznie dodane przez MongoDB
-        }
+    client.close()
 
-        # Wstaw dokument do kolekcji
-        client = MongoClient(CONNECTION_STRING, serverSelectionTimeoutMS=5000)  # Timeout po 5s
-        # Sprawdzenie połączenia
-        client.admin.command('ismaster')
-        db = client[NAZWA_BAZY_DANYCH]
-        collection = db["ascends"]
+    response = make_response(redirect(url_for('ascends_by_route', route_id_str=route_id_str)))  # Przekieruj np. na stronę główną po sukcesie
+    response.set_cookie('user_name', user, max_age=30 * 24 * 60 * 60, httponly=True,
+                        secure=True)  # secure=True w produkcji
 
-        result = collection.insert_one(new_ascend_document)
+    return response
 
-        client.close()
+@app.route('/new_route') # Dekorator definiuje, że ta funkcja obsłuży żądania do głównego adresu ('/')
+def new_route():
+    # Pobierz dane przy każdym żądaniu strony
+    dane_z_bazy, blad = wszystkie_drogi()
 
-        response = make_response(redirect(url_for('ascends_by_route', route_id_str=route_id_str)))  # Przekieruj np. na stronę główną po sukcesie
-        response.set_cookie('user_name', user, max_age=30 * 24 * 60 * 60, httponly=True,
-                            secure=True)  # secure=True w produkcji
+    # Renderuj szablon HTML, przekazując mu pobrane dane i ewentualny błąd
+    # Flask automatycznie szuka szablonów w folderze 'templates'
+    return render_template('new_route.html', dane=dane_z_bazy, error=blad)
 
-        # Sprawdź, czy wstawienie się powiodło
-        if result.inserted_id:
-            flash(f"Wpis został pomyślnie dodany! ID: {result.inserted_id}", 'success')
-        else:
-             # To raczej nie powinno się zdarzyć przy insert_one, ale na wszelki wypadek
-             flash("Wystąpił błąd podczas zapisywania wpisu w bazie.", 'error')
 
-    except Exception as e:
-        flash(f"Wystąpił błąd bazy danych: {e}", 'error')
-        # Przekaż wprowadzone dane z powrotem, żeby użytkownik mógł poprawić
-        return render_template('add_ascend.html',
-                               initial_data={'route_id': ObjectId(route_id_str),
-                                             'grade': grade,
-                                             'review': review_str,
-                                             'user': user})
+@app.route('/add_route', methods=['POST'])
+def add_route():
+    # --- 1. Pobierz dane z formularza ---
+    grade = request.form.get('grade')
+    name = request.form.get('name')
+    user = request.form.get('user')
 
-        # --- 5. Przekieruj po pomyślnym dodaniu ---
-        # Przekierowanie do tej samej trasy (metodą GET) zapobiega ponownemu wysłaniu formularza po odświeżeniu strony
+    grade = grade.strip() # Usuń białe znaki z początku/końca
+    user = user.strip() # Usuń białe znaki z początku/końca
+    name = name.strip()  # Usuń białe znaki z początku/końca
 
+    new_route_document = {
+        "name": name,
+        # _id zostanie automatycznie dodane przez MongoDB
+    }
+
+    # Wstaw dokument do kolekcji
+    client = MongoClient(CONNECTION_STRING, serverSelectionTimeoutMS=5000)  # Timeout po 5s
+    # Sprawdzenie połączenia
+    client.admin.command('ismaster')
+    db = client[NAZWA_BAZY_DANYCH]
+    collection = db["routes"]
+
+    result = collection.insert_one(new_route_document)
+
+    collection = db["ascends"]
+
+    new_ascend_document = {
+        "route_id": result.inserted_id,
+        "grade": grade,
+        "user": user
+        # _id zostanie automatycznie dodane przez MongoDB
+    }
+
+    result = collection.insert_one(new_ascend_document)
+
+    client.close()
+
+    response = make_response(redirect(url_for('all_data')))  # Przekieruj np. na stronę główną po sukcesie
     return response
 
 # Uruchomienie aplikacji Flask w trybie deweloperskim

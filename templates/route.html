@@ -16,9 +16,20 @@
             <canvas
               data-mdb-chart-init
               data-mdb-chart="bar"
-              data-mdb-dataset-label="Grades"
+              data-mdb-dataset-label="Your grades"
               data-mdb-labels="{{ etykiety }}"
               data-mdb-dataset-data="{{ wartosci }}"
+              data-mdb-chart-options='{
+                    "scales": {
+                      "x": {
+                        "ticks": {
+                          "font": {
+                            "size": 30 {# Ustaw rozmiar czcionki dla etykiet na osi X #}
+                          }
+                        }
+                      }
+                    }
+                  }'
             ></canvas>
           </div>
         </div>
@@ -95,7 +106,7 @@
                   <div class="col-auto">
                     <div data-mdb-input-init class="form-outline">
                       <input type="text" class="form-control" id="grade" name="grade" required value="6a"/>
-                      <label class="form-label" for="grade">Route grade</label>
+                      <label class="form-label" for="grade">Your route grade</label>
                     </div>
                   </div>
                 </div>
@@ -147,7 +158,7 @@
           </div>
         </div>
       </section>
-      <!--Section: Sales Performance KPIs-->
+      <!--Section: QR code-->
 
    {% endblock %}
 

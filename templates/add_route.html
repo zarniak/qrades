@@ -1,0 +1,56 @@
+{# ### TEN SZABLON DZIEDZICZY Z base.html ### #}
+{% extends "base.html" %}
+
+{# ### DEFINIUJESZ TYLKO BLOK, KTÓRY CHCESZ ZMIENIĆ ### #}
+
+{# Nadpisz blok 'title' #}
+{% block title %}QR grades - Strona Główna{% endblock %}
+
+{# Nadpisz blok 'content' główną treścią strony głównej #}
+{% block content %}
+
+    <h1>Dodaj Nowy Wpis (Ascend)</h1>
+
+    {# Wyświetlanie komunikatów flash (sukces/błąd) #}
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <ul class="flash-messages">
+            {% for category, message in messages %}
+                <li class="{{ category }}">{{ message }}</li>
+            {% endfor %}
+            </ul>
+        {% endif %}
+    {% endwith %}
+
+    {# Formularz do dodawania wpisu #}
+    <form method="POST" action="{{ url_for('add_ascend') }}">
+        <div>
+            <label for="route_id">ID Trasy (ObjectId):</label>
+            <input type="text" id="route_id" name="route_id" required value="{{ initial_data.route_id | default('', true) }}">
+            {# value="{{ initial_data.route_id | default('', true) }}" zapamiętuje wprowadzone dane po błędzie #}
+        </div>
+        <div>
+            <label for="grade">Ocena:</label>
+            <input type="text" id="grade" name="grade" required value="{{ initial_data.grade | default('', true) }}">
+        </div>
+
+        <div>
+            <label for="review">Recenzja (1-5):</label>
+            <input type="number" id="review" name="review" min="1" max="5" step="1" required value="{{ initial_data.review | default('', true) }}">
+        </div>
+
+        <div>
+            <label for="user">Użytkownik:</label>
+            <input type="text" id="user" name="user" required value="{{ initial_data.user | default('', true) }}">
+        </div>
+
+        <div>
+            <button type="submit">Zapisz Wpis</button>
+        </div>
+    </form>
+
+    <p><a href="/">Powrót do strony głównej</a></p>
+
+   {% endblock %}
+
+{# Nie definiujemy innych bloków (head_extra, scripts_extra), jeśli nie są potrzebne #}

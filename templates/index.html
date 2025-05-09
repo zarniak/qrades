@@ -14,35 +14,13 @@
         <div class="card">
           <div class="card-header text-center py-3">
             <h5 class="mb-0 text-center">
-              <strong>Climbing routes</strong>
+              <strong>QR grade = qrades</strong>
             </h5>
           </div>
           <div class="card-body">
-            <div class="table-responsive">
-              <table class="table table-hover text-nowrap">
-                <thead>
-                  <tr>
-                    {# Automatyczne generowanie nagłówków na podstawie kluczy pierwszego dokumentu #}
-                    {# Zakładamy, że wszystkie dokumenty mają podobną strukturę #}
-                    {% for key in dane[0].keys() %}
-                        <th scope="col">{{ key }}</th>
-                    {% endfor %}
-                  </tr>
-                </thead>
-                <tbody>
-                {% for dokument in dane %}
-                  <tr>
-                    {# Pętla przez wartości w danym dokumencie #}
-                    {# zeby wybrac wartosc z listy to trzeba przekonwertowac na liste #}
-                    {% set wartosci_lista = dokument.values() | list %}
-                    {% for value in wartosci_lista %}
-                      <td><a href="route/{{ wartosci_lista[0] }}">{{ value }}</a></td>
-                    {% endfor %}
-                  </tr>
-                {% endfor %}
-                </tbody>
-              </table>
-            </div>
+            <h5 class="mb-0 text-center">
+              <strong>opis</strong>
+            </h5>
           </div>
         </div>
       </section>

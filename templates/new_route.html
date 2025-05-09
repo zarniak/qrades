@@ -1,0 +1,65 @@
+{# ### TEN SZABLON DZIEDZICZY Z base.html ### #}
+{% extends "base.html" %}
+
+{# ### DEFINIUJESZ TYLKO BLOK, KTÓRY CHCESZ ZMIENIĆ ### #}
+
+{# Nadpisz blok 'title' #}
+{% block title %}QR grades - Strona Główna{% endblock %}
+
+{# Nadpisz blok 'content' główną treścią strony głównej #}
+{% block content %}
+
+     <!-- Section: Stars -->
+      <section class="mb-4">
+        <div class="card">
+          <div class="card-body">
+
+     <!-- Section: Form -->
+      <section class="mb-4">
+        <div class="card">
+          <div class="card-body">
+
+              <form method="POST" class="row gy-2 gx-3 align-items-center" action="{{ url_for('add_route') }}">
+
+                <div class="row mb-4">
+                  <div class="col-auto" data-mdb-input-init>
+                    <div data-mdb-input-init class="form-outline">
+                      <input type="text" class="form-control" id="name" name="name" required value="x"/>
+                      <label class="form-label" for="name">Route name</label>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="row mb-4">
+                  <div class="col-auto" data-mdb-input-init>
+                    <div data-mdb-input-init class="form-outline">
+                      <input type="text" class="form-control" id="user" name="user" required value="x"/>
+                      <label class="form-label" for="user">Username</label>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="row mb-4">
+                  <div class="col-auto">
+                    <div data-mdb-input-init class="form-outline">
+                      <input type="text" class="form-control" id="grade" name="grade" required value="6a"/>
+                      <label class="form-label" for="grade">Your route grade</label>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="row mb-4">
+                  <div class="col-auto">
+                    <button data-mdb-ripple-init type="submit" class="btn btn-primary">Submit</button>
+                  </div>
+                </div>
+            </form>
+
+          </div>
+        </div>
+      </section>
+      <!-- Section: Form -->
+
+   {% endblock %}
+
+{# Nie definiujemy innych bloków (head_extra, scripts_extra), jeśli nie są potrzebne #}
