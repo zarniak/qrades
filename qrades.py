@@ -9,7 +9,7 @@ import os
 import qrcode
 import datetime # Do ustawienia daty ważności cookie
 
-base_url = "http://127.0.0.1:5000/"
+base_url = "https://qrades.onrender.com/"
 
 load_dotenv()
 #CONNECTION_STRING = os.getenv("CONNECTION_STRING")
