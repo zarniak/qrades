@@ -180,7 +180,7 @@ def pobierz_dane_z_mongo(pipeline, kolekcja):
     return dokumenty, error_message
 
 def generuj_qr_code(dynamic_route_id_obj = None):
-    pelny_url = f"{base_url}{dynamic_route_id_obj}"
+    pelny_url = f"{base_url}route/{dynamic_route_id_obj}"
 
     qr = qrcode.QRCode(
         version=None,  # Automatyczny dobór wersji
@@ -226,6 +226,7 @@ def index():
     # Flask automatycznie szuka szablonów w folderze 'templates'
     return render_template('index.html', dane=dane_z_bazy, error=blad)
 
+@app.route('/<route_id_str>')
 @app.route('/route/<route_id_str>') # Dekorator definiuje, że ta funkcja obsłuży żądania do głównego adresu ('/')
 def ascends_by_route(route_id_str):
     # --- Konwersja stringa route_id na ObjectId ---
