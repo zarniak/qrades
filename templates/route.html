@@ -153,7 +153,50 @@
         <div class="card">
           <div class="card-body">
             <h5 class="mb-0 text-center">
-              <img src="https://qrades.onrender.com/qr/{{ initial_data.route_id | default('', true) }}" class="img-fluid">
+              <img src="https://qrades.onrender.com/qr/{{ initial_data.route_id | default('', true) }}" class="img-fluid" id="qrCodeImage" >
+                <p>Kliknij na kod QR, aby skopiować link.</p>
+                <p class="feedback-message" id="feedbackMessage"></p> {# Element do wyświetlania komunikatu zwrotnego #}
+                    <script>
+                        // Pobierz element obrazka po jego ID
+                        const qrImage =  document.getElementById('qrCodeImage');
+                        // Pobierz element do wyświetlania komunikatu zwrotnego
+                        const pageUrl = window.location.href;
+                        const feedbackMessage = document.getElementById('feedbackMessage');
+
+                        // Sprawdź, czy element obrazka istnieje na stronie
+                        if (qrImage) {
+                            // Dodaj nasłuchiwanie na zdarzenie kliknięcia na obrazku
+                            qrImage.addEventListener('click', function() {
+                                // Pobierz adres URL obrazka z atrybutu 'src'
+                                const imageUrl = qrImage.src;
+
+                                // Użyj Clipboard API do skopiowania tekstu do schowka
+                                // navigator.clipboard.writeText() zwraca Promise
+                                navigator.clipboard.writeText(pageUrl)
+                                    .then(() => {
+                                        // Sukces: tekst został skopiowany
+                                        console.log('Link skopiowany do schowka:', imageUrl);
+                                        // Wyświetl komunikat zwrotny dla użytkownika
+                                        feedbackMessage.textContent = 'Link skopiowany do schowka!';
+                                        // Ukryj komunikat po kilku sekundach
+                                        setTimeout(() => {
+                                            feedbackMessage.textContent = '';
+                                        }, 3000); // Komunikat zniknie po 3 sekundach
+                                    })
+                                    .catch(err => {
+                                        // Błąd: kopiowanie się nie powiodło
+                                        console.error('Błąd podczas kopiowania linku: ', err);
+                                        // Wyświetl komunikat o błędzie
+                                        feedbackMessage.textContent = 'Nie udało się skopiować linku.';
+                                         setTimeout(() => {
+                                            feedbackMessage.textContent = '';
+                                        }, 3000);
+                                    });
+                            });
+                        } else {
+                            console.error("Element obrazka QR o ID 'qrCodeImage' nie został znaleziony.");
+                        }
+                    </script>
             </h5>
           </div>
         </div>

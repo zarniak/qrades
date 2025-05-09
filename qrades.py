@@ -138,17 +138,9 @@ def wszystkie_dane_z_bazy(dynamic_route_id_obj = None):
 def wszystkie_drogi():
     pipeline = [
         {
-            # Etap 2: $project - Określ, które pola mają być zwrócone i w jakiej formie
-            # '{поле: 1}' oznacza, że pole ma być włączone do wyniku (1 to true)
-            # Pola wymienione w przykładzie struktury to _id, name, grade
             '$project': {
-                '_id': 1,  # Włącz pole _id
+                'route_id': 1,  # Włącz pole _id
                 'name': 1,  # Włącz pole name
-                'grade': 1  # Włącz pole grade
-                # Jeśli chcesz wyświetlić *wszystkie* pola, a nie tylko te z przykładu,
-                # i nie wiesz z góry wszystkich nazw, możesz użyć:
-                # '$project': { $mergeObjects: '$$ROOT' } # Kopiuje cały dokument wejściowy do nowego pola, a potem...
-                # Ale do prostego wyświetlenia tych trzech pól, lepiej jawnie je wymienić.
             }
         }
     ]
