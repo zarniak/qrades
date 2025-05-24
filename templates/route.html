@@ -104,35 +104,47 @@
 
                 <div class="row mb-4">
                   <div class="col-auto">
-                    <div data-mdb-input-init class="form-outline">
-                      <input type="text" class="form-control" id="grade" name="grade" required value="6a"/>
-                      <label class="form-label" for="grade">Your route grade</label>
-                    </div>
+                      <div class="col-auto">
+                        {# Pętla generująca radio buttony dla liczb od 1 do 5 #}
+                        {# range(1, 6) wygeneruje sekwencję liczb 1, 2, 3, 4, 5 #}
+                        {% for i in ["5c", "6a", "6b", "6c", "7a"] %}
+                            {# Tworzymy pojedynczy radio button #}
+                                <div class="btn-group">
+                                    <input class="btn-check" type="radio" autocomplete="off" id="grade_{{ i }}" {# Unikalne ID, np. review_1, review_2, ... #}
+                                        name="grade" {# Wspólna nazwa dla całej grupy #}
+                                        value="{{ i }}" {# Wartość przesyłana po zaznaczeniu (liczba jako string) #}
+                                       {% if initial_data.review is defined and initial_data.review is not none and initial_data.review == i %}checked{% endif %} {# Zaznacz, jeśli wartość w initial_data pasuje do tej opcji #}
+                                       {% if loop.first %}required{% endif %}> {# Oznacz pierwszy radio button jako wymagany (wymusza wybór z grupy) #}
+                                    {# Etykieta dla danego radio buttona #}
+                                    <label class="btn btn-secondary" for="grade_{{ i }}">{{ i }}</label>
+                            {# Opcjonalnie dodaj spację lub inny separator między opcjami #}
+                                </div>
+                            {% if not loop.last %} &nbsp; {% endif %}
+                        {% endfor %}
+                      </div>
                   </div>
                 </div>
 
                 <div class="row mb-4">
                   <div class="col-auto">
-                    Rate:
-                  </div>
-
-                  <div class="col-auto">
-                    {# Pętla generująca radio buttony dla liczb od 1 do 5 #}
-                    {# range(1, 6) wygeneruje sekwencję liczb 1, 2, 3, 4, 5 #}
-                    {% for i in range(1, 6) %}
-                        {# Tworzymy pojedynczy radio button #}
-                            <div class="form-check form-check-inline">
-                                <input class="form-check-input" type="radio" id="review_{{ i }}" {# Unikalne ID, np. review_1, review_2, ... #}
-                                    name="review" {# Wspólna nazwa dla całej grupy #}
-                                    value="{{ i }}" {# Wartość przesyłana po zaznaczeniu (liczba jako string) #}
-                                   {% if initial_data.review is defined and initial_data.review is not none and initial_data.review == i %}checked{% endif %} {# Zaznacz, jeśli wartość w initial_data pasuje do tej opcji #}
-                                   {% if loop.first %}required{% endif %}> {# Oznacz pierwszy radio button jako wymagany (wymusza wybór z grupy) #}
-                                {# Etykieta dla danego radio buttona #}
-                                <label class="form-check-label" for="review_{{ i }}">{{ i }}</label>
-                        {# Opcjonalnie dodaj spację lub inny separator między opcjami #}
-                            </div>
-                        {% if not loop.last %} &nbsp; {% endif %}
-                    {% endfor %}
+                      <div class="col-auto">
+                        {# Pętla generująca radio buttony dla liczb od 1 do 5 #}
+                        {# range(1, 6) wygeneruje sekwencję liczb 1, 2, 3, 4, 5 #}
+                        {% for i in range(1, 6) %}
+                            {# Tworzymy pojedynczy radio button #}
+                                <div class="btn-group">
+                                    <input class="btn-check" type="radio" autocomplete="off" id="review_{{ i }}" {# Unikalne ID, np. review_1, review_2, ... #}
+                                        name="review" {# Wspólna nazwa dla całej grupy #}
+                                        value="{{ i }}" {# Wartość przesyłana po zaznaczeniu (liczba jako string) #}
+                                       {% if initial_data.review is defined and initial_data.review is not none and initial_data.review == i %}checked{% endif %} {# Zaznacz, jeśli wartość w initial_data pasuje do tej opcji #}
+                                       {% if loop.first %}required{% endif %}> {# Oznacz pierwszy radio button jako wymagany (wymusza wybór z grupy) #}
+                                    {# Etykieta dla danego radio buttona #}
+                                    <label class="btn btn-secondary" for="review_{{ i }}">{{ i }}</label>
+                            {# Opcjonalnie dodaj spację lub inny separator między opcjami #}
+                                </div>
+                            {% if not loop.last %} &nbsp; {% endif %}
+                        {% endfor %}
+                      </div>
                   </div>
                 </div>
 
