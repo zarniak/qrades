@@ -74,25 +74,21 @@
           <div class="card-body">
 
               <form method="POST" class="row gy-2 gx-3 align-items-center" action="{{ url_for('add_ascend') }}">
-                <div class="row mb-4">
-                  <div class="col-auto">
-                    <div data-mdb-input-init class="form-outline">
-                      <input type="hidden" class="form-control" id="route_id" name="route_id" required value="{{ initial_data.route_id | default('', true) }}"/>
-                    </div>
-                  </div>
-                </div>
 
-                <div class="row g-3">
+
+
+                <div class="row g-2">
                   <div class="col-sm" data-mdb-input-init>
                     <div data-mdb-input-init class="form-outline">
+                      <input type="hidden" class="form-control" id="route_id" name="route_id" required value="{{ initial_data.route_id | default('', true) }}"/>
                       <input type="text" class="form-control" id="user" name="user" required value="{{ initial_data.user | default('', true) }}"/>
                       <label class="form-label" for="user">Username</label>
                     </div>
                   </div>
                 </div>
 
-                <div class="row g-3">
-                  <div class="col-sm">
+                <div class="row g-2">
+                  <div class="col-sm d-flex justify-content-center">
                       <div class="btn-group btn-group-sm">
                     {# Pętla generująca radio buttony dla liczb od 1 do 5 #}
                     {# range(1, 6) wygeneruje sekwencję liczb 1, 2, 3, 4, 5 #}
@@ -112,8 +108,8 @@
                   </div>
                 </div>
 
-                <div class="row g-3">
-                  <div class="col-sm">
+                <div class="row g-2">
+                  <div class="col-sm d-flex justify-content-center">
                      <div class="btn-group btn-group-sm">
                         {# Pętla generująca radio buttony dla liczb od 1 do 5 #}
                         {# range(1, 6) wygeneruje sekwencję liczb 1, 2, 3, 4, 5 #}
@@ -135,7 +131,7 @@
                   </div>
                 </div>
 
-                <div class="row g-3">
+                <div class="row g-2">
                   <div class="col-sm">
                     <button data-mdb-ripple-init type="submit" class="btn btn-primary btn-block mb-4">Submit</button>
                   </div>
