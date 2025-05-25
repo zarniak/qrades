@@ -1,6 +1,8 @@
 Flask
-pymongo
 qrcode
 Pillow
 python-dotenv
+Workbook
+openpyxl
 gunicorn
+pymongo

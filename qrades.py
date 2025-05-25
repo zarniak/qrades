@@ -1,4 +1,4 @@
-from flask import Flask, render_template, Response, request, redirect, url_for, flash, make_response
+from flask import Flask, render_template, Response, request, redirect, url_for, make_response, send_file
 from pymongo import MongoClient
 from pymongo.errors import ConnectionFailure
 from bson.objectid import ObjectId
@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 from io import BytesIO
 import os
 import qrcode
+from openpyxl import Workbook
 import datetime # Do ustawienia daty ważności cookie
 
 base_url = "https://qrades.onrender.com/"
@@ -122,6 +123,7 @@ def wszystkie_dane_z_bazy(dynamic_route_id_obj = None):
                 'route_id': 1,  # Zachowaj route_id z ascends
                 'user_id': 1,  # Zachowaj user_id z ascends
                 'route_name': '$route_info.name',  # Pobierz name z połączonego dokumentu route
+                'created_at': '$route_info.created_at',  # Pobierz name z połączonego dokumentu route
                 'route_grade': '$route_info.grade',  # Pobierz grade z połączonego dokumentu route
             }
         }
@@ -135,16 +137,94 @@ def wszystkie_dane_z_bazy(dynamic_route_id_obj = None):
         })
     return pobierz_dane_z_mongo(pipeline, "ascends")
 
-def wszystkie_drogi():
+def pobierz_all_data():
     pipeline = [
+        # Etap 1: Grupuj wpisy z 'ascends' po 'route_id'
+        # Oblicz średnią recenzję, zbierz wszystkie oceny dla późniejszego wyznaczenia najczęściej występującej
+        # ORAZ znajdź najnowszą datę utworzenia wpisu z kolekcji 'ascends'
+        {
+            '$group': {
+                '_id': '$route_id',
+                'average_review': { '$avg': '$review' },
+                'grades_for_mode': { '$push': '$grade' },
+                'latest_ascend_date': { '$max': '$created_at' } # DODANO: Najnowsza data z ascends
+            }
+        },
+        # Etap 2: Dołącz informacje o trasie z kolekcji 'routes'
+        {
+            '$lookup': {
+                'from': 'routes',
+                'localField': '_id',
+                'foreignField': '_id',
+                'as': 'route_info'
+            }
+        },
+        # Etap 3: Rozwiń tablicę 'route_info' (zakładamy, że każdy route_id pasuje do jednej trasy)
+        {
+            '$unwind': '$route_info'
+        },
+        # Etap 4: Oblicz najczęściej występującą ocenę
+        # Tworzy mapę częstotliwości ocen dla każdej trasy
+        {
+            '$addFields': {
+                'grade_frequency_map': {
+                    '$reduce': {
+                        'input': '$grades_for_mode',
+                        'initialValue': {},
+                        'in': {
+                            '$mergeObjects': [
+                                '$$value',
+                                { '$arrayToObject': [[{
+                                    'k': '$$this',
+                                    'v': { '$add': [{ '$ifNull': [{ '$getField': '$$this' }, 0] }, 1] }
+                                }]] }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+
+        {
+            '$addFields': {
+                'most_frequent_grade': {
+                    '$let': {
+                        'vars': { 'gradesArray': { '$objectToArray': '$grade_frequency_map' } },
+                        'in': {
+                            '$arrayElemAt': [
+                                { '$map': {
+                                    'input': '$$gradesArray',
+                                    'as': 'item',
+                                    'in': '$$item.k'
+                                }},
+                                { '$indexOfArray': [
+                                    { '$map': {
+                                        'input': '$$gradesArray',
+                                        'as': 'item',
+                                        'in': '$$item.v'
+                                    }},
+                                    { '$max': '$$gradesArray.v' }
+                                ]}
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+
         {
             '$project': {
-                'route_id': 1,  # Włącz pole _id
-                'name': 1,  # Włącz pole name
+                '_id': '$route_info._id', # ID trasy
+                'name': '$route_info.name', # Nazwa trasy
+                'route_created_at': '$route_info.created_at', # Data utworzenia trasy (z kolekcji routes)
+                'most_frequent_grade': '$most_frequent_grade', # Najczęściej występująca ocena z wpisów
+                'average_review': { '$round': ['$average_review', 1] }, # Średnia recenzja, zaokrąglona do 1 miejsca po przecinku
+                'latest_ascend_date': '$latest_ascend_date' # DODANO: Najnowsza data wpisu (z kolekcji ascends)
             }
         }
     ]
-    return pobierz_dane_z_mongo(pipeline, "routes")
+
+    return pobierz_dane_z_mongo(pipeline, "ascends")
 
 def pobierz_dane_z_mongo(pipeline, kolekcja):
     client = None
@@ -170,6 +250,71 @@ def pobierz_dane_z_mongo(pipeline, kolekcja):
         if client:
             client.close()
     return dokumenty, error_message
+
+def add_multiple_routes():
+
+    new_route_document = {
+        "name": f"Route from {datetime.datetime.now().strftime('%Y%m%d%H%M%S')}",  # Dodaj unikalną nazwę
+        "created_at": datetime.datetime.now()  # Dodaj aktualną datę i czas
+    }
+
+    # Wstaw dokument do kolekcji
+    client = MongoClient(CONNECTION_STRING, serverSelectionTimeoutMS=5000)  # Timeout po 5s
+    # Sprawdzenie połączenia
+    client.admin.command('ismaster')
+    db = client[NAZWA_BAZY_DANYCH]
+    collection = db["routes"]
+
+    result = collection.insert_one(new_route_document)
+
+    client.close()
+
+    return result.inserted_id
+
+@app.route('/generate_xlsx')
+def generate_xlsx():
+    # Dane, które mają znaleźć się w pliku XLSX
+    # Możesz to dynamicznie pobierać z bazy danych, np. wszystkie ID tras
+    # Na potrzeby przykładu użyjemy podanych przez Ciebie wartości
+    data_for_xlsx = [
+        "qrades"
+    ]
+
+    # Generuj 20 nowych identyfikatorów tras i dodaj je do listy
+    for _ in range(20): # Pętla wykonująca się 20 razy
+        data_for_xlsx.append(f"{base_url}route/{add_multiple_routes()}")
+
+    # Utwórz nowy skoroszyt (workbook) Excela
+    workbook = Workbook()
+    # Wybierz aktywny arkusz (domyślnie "Sheet")
+    sheet = workbook.active
+    # Zmień nazwę arkusza, jeśli chcesz
+    sheet.title = "QR Codes"
+
+    # Dodaj nagłówek kolumny
+    sheet['A1'] = "QR Code Link"
+
+    # Wypełnij kolumnę 'A' danymi
+    # Zaczynamy od wiersza 2, ponieważ wiersz 1 to nagłówek
+    for index, item in enumerate(data_for_xlsx, start=2):
+        sheet[f'A{index}'] = item
+
+    # Dostosuj szerokość kolumny do zawartości (opcjonalne, ale zalecane)
+    sheet.column_dimensions['A'].width = 50 # Ustaw stałą szerokość lub oblicz dynamicznie
+
+    # Zapisz skoroszyt do bufora w pamięci
+    # Jest to kluczowe, aby nie zapisywać pliku na dysku serwera, a od razu go wysłać
+    excel_buffer = BytesIO()
+    workbook.save(excel_buffer)
+    excel_buffer.seek(0) # Przewiń bufor na początek
+
+    # Zwróć plik jako odpowiedź do pobrania
+    return send_file(
+        excel_buffer,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name='qr_codes.xlsx' # Nazwa pliku, który zostanie pobrany
+    )
 
 def generuj_qr_code(dynamic_route_id_obj = None):
     pelny_url = f"{base_url}route/{dynamic_route_id_obj}"
@@ -212,7 +357,7 @@ def generuj_qr_code(dynamic_route_id_obj = None):
 @app.route('/')  # Dekorator definiuje, że ta funkcja obsłuży żądania do głównego adresu ('/')
 def index():
     # Pobierz dane przy każdym żądaniu strony
-    dane_z_bazy, blad = wszystkie_drogi()
+    dane_z_bazy, blad = pobierz_all_data()
 
     # Renderuj szablon HTML, przekazując mu pobrane dane i ewentualny błąd
     # Flask automatycznie szuka szablonów w folderze 'templates'
@@ -221,7 +366,7 @@ def index():
 @app.route('/all_data') # Dekorator definiuje, że ta funkcja obsłuży żądania do głównego adresu ('/')
 def all_data():
     # Pobierz dane przy każdym żądaniu strony
-    dane_z_bazy, blad = wszystkie_drogi()
+    dane_z_bazy, blad = pobierz_all_data()
 
     # Renderuj szablon HTML, przekazując mu pobrane dane i ewentualny błąd
     # Flask automatycznie szuka szablonów w folderze 'templates'
@@ -282,7 +427,8 @@ def add_ascend():
         "route_id": ObjectId(route_id_str),
         "grade": grade,
         "review": review_int,     # Użyj skonwertowanej liczby całkowitej
-        "user": user
+        "user": user,
+        "created_at": datetime.datetime.now()  # Dodaj aktualną datę i czas
         # _id zostanie automatycznie dodane przez MongoDB
     }
 
@@ -293,7 +439,7 @@ def add_ascend():
     db = client[NAZWA_BAZY_DANYCH]
     collection = db["ascends"]
 
-    result = collection.insert_one(new_ascend_document)
+    collection.insert_one(new_ascend_document)
 
     client.close()
 
@@ -301,57 +447,6 @@ def add_ascend():
     response.set_cookie('user_name', user, max_age=30 * 24 * 60 * 60, httponly=True,
                         secure=True)  # secure=True w produkcji
 
-    return response
-
-@app.route('/new_route') # Dekorator definiuje, że ta funkcja obsłuży żądania do głównego adresu ('/')
-def new_route():
-    # Pobierz dane przy każdym żądaniu strony
-    dane_z_bazy, blad = wszystkie_drogi()
-
-    # Renderuj szablon HTML, przekazując mu pobrane dane i ewentualny błąd
-    # Flask automatycznie szuka szablonów w folderze 'templates'
-    return render_template('new_route.html', dane=dane_z_bazy, error=blad)
-
-
-@app.route('/add_route', methods=['POST'])
-def add_route():
-    # --- 1. Pobierz dane z formularza ---
-    grade = request.form.get('grade')
-    name = request.form.get('name')
-    user = request.form.get('user')
-
-    grade = grade.strip() # Usuń białe znaki z początku/końca
-    user = user.strip() # Usuń białe znaki z początku/końca
-    name = name.strip()  # Usuń białe znaki z początku/końca
-
-    new_route_document = {
-        "name": name,
-        # _id zostanie automatycznie dodane przez MongoDB
-    }
-
-    # Wstaw dokument do kolekcji
-    client = MongoClient(CONNECTION_STRING, serverSelectionTimeoutMS=5000)  # Timeout po 5s
-    # Sprawdzenie połączenia
-    client.admin.command('ismaster')
-    db = client[NAZWA_BAZY_DANYCH]
-    collection = db["routes"]
-
-    result = collection.insert_one(new_route_document)
-
-    collection = db["ascends"]
-
-    new_ascend_document = {
-        "route_id": result.inserted_id,
-        "grade": grade,
-        "user": user
-        # _id zostanie automatycznie dodane przez MongoDB
-    }
-
-    result = collection.insert_one(new_ascend_document)
-
-    client.close()
-
-    response = make_response(redirect(url_for('all_data')))  # Przekieruj np. na stronę główną po sukcesie
     return response
 
 # Uruchomienie aplikacji Flask w trybie deweloperskim
