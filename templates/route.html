@@ -13,13 +13,66 @@
       <section class="mb-4">
         <div class="card">
           <div class="card-body">
-            <canvas
-              data-mdb-chart-init
-              data-mdb-chart="bar"
-              data-mdb-dataset-label="Your grades"
-              data-mdb-labels="{{ etykiety }}"
-              data-mdb-dataset-data="{{ wartosci }}"
-            ></canvas>
+            <canvas id="bar-chart"></canvas>
+            <script type="text/javascript">
+                // Ensure the DOM is fully loaded before trying to access the canvas element
+                document.addEventListener('DOMContentLoaded', function() {
+                    // Chart data configuration
+                    const dataBar = {
+                        type: 'bar', // Specifies the chart type as a bar chart
+                        data: {
+                            // Labels for the x-axis (categories)
+                            labels: {{ etykiety | tojson }},
+                            datasets: [
+                                {
+                                    label: 'grade', // Label for the dataset
+                                    data: {{ wartosci | tojson }}, // Data points for the bars
+                                    backgroundColor: 'rgba(66,133,244,1)', // Color of the bars
+                                    borderColor: 'rgba(66,133,244,1)', // Border color of the bars
+                                    borderWidth: 1, // Border width of the bars
+                                    borderRadius: 5, // Rounded corners for bars
+                                },
+                            ],
+                        },
+                        options: {
+                            responsive: true, // Makes the chart responsive to container size changes
+                            plugins: {
+                                legend: {
+                                    display: false, // Hides the legend as there's only one dataset
+                                }
+                            },
+                            scales: {
+                                y: {
+                                    beginAtZero: true, // Start the y-axis from zero
+                                    title: {
+                                        display: false, // Hide the title for the y-axis
+                                    },
+                                    grid: {
+                                        display: false // Hide grid lines for the y-axis
+                                    },
+                                    ticks: {
+                                        display: false // Hide labels (ticks) for the y-axis
+                                    },
+                                    border: {
+                                        display: false // Hide the axis line for the y-axis
+                                    }
+                                },
+                                x: {
+                                    grid: {
+                                        display: false // Hide grid lines for the x-axis
+                                    }
+                                }
+                            }
+                        }
+                    };
+
+                    // Get the canvas element by its ID
+                    const ctx = document.getElementById('bar-chart');
+
+                    // Create a new Chart instance using the canvas context and the defined data/options
+                    new Chart(ctx, dataBar);
+                });
+            </script>
           </div>
         </div>
       </section>
