@@ -1,4 +1,4 @@
-from flask import Flask, render_template, Response, request, redirect, url_for, make_response, send_file
+from flask import Flask, render_template, Response, request, redirect, url_for, make_response, send_file, flash
 from pymongo import MongoClient
 from pymongo.errors import ConnectionFailure
 from bson.objectid import ObjectId
@@ -125,14 +125,13 @@ def all_ascends_by_user(user_id):
         },
         {
             '$project': {
-                '_id': 0, # Ukryj domyślne _id przejścia
+                '_id': 1, # Ukryj domyślne _id przejścia
                 'grade': 1, # Stopień trudności przejścia
                 'review': 1, # Recenzja przejścia
                 'created_at': 1, # Data utworzenia przejścia
                 'route_id': '$route_id', # ObjectId trasy
                 'user': 1, # Nazwa użytkownika
                 'route_name': { '$ifNull': ['$route_info.name', 'Nieznana Trasa'] }, # Nazwa trasy z routes
-                'route_grade': { '$ifNull': ['$route_info.grade', 'N/A'] }, # Ocena trasy z routes
             }
         },
         {
@@ -392,11 +391,7 @@ def ascends_by_user(user_id = None):
 
     # Definicja skali trudności (musi być zgodna z JS)
     climbing_grades = [
-        '5a', '5b', '5c',
-        '6a', '6b', '6c',
-        '7a', '7b', '7c',
-        '8a', '8b', '8c',
-        '9a', '9b', '9c'
+        '5a', '5b', '5c', '6a', '6b', '6c', '7a', '7b', '7c', '8a', '8b', '8c', '9a', '9b', '9c'
     ]
 
     scatter_chart_data = []
@@ -464,6 +459,12 @@ def add_ascend():
     review_int = int(review_str) # Konwersja stringa na liczbę całkowitą
     user = user.strip() # Usuń białe znaki z początku/końca
 
+    # --- Zapytanie do znalezienia istniejącego wpisu ---
+    query = {
+        "user": user,
+        "route_id": ObjectId(route_id_str)
+    }
+
     new_ascend_document = {
         "route_id": ObjectId(route_id_str),
         "grade": grade,
@@ -480,15 +481,172 @@ def add_ascend():
     db = client[NAZWA_BAZY_DANYCH]
     collection = db["ascends"]
 
-    collection.insert_one(new_ascend_document)
+    existing_document = collection.find_one(query)
+    # Dane do zaktualizowania/wstawienia
+    update_data = {
+        "grade": grade,
+        "review": review_int,
+        "created_at": datetime.datetime.now()
+    }
+
+    if existing_document:
+        collection.update_one(query, {'$set': update_data})
+    else:
+        collection.insert_one(new_ascend_document)
 
     client.close()
 
     response = make_response(redirect(url_for('ascends_by_route', route_id_str=route_id_str)))  # Przekieruj np. na stronę główną po sukcesie
-    response.set_cookie('user_name', user, max_age=30 * 24 * 60 * 60, httponly=True,
-                        secure=True)  # secure=True w produkcji
+    response.set_cookie('user_name', user, max_age=30 * 24 * 60 * 60, httponly=True, secure=True)  # secure=True w produkcji
 
     return response
+
+def clean_unlinked_routes():
+    client = None
+    deleted_count = 0
+    try:
+        client = MongoClient(CONNECTION_STRING, serverSelectionTimeoutMS=5000)
+        client.admin.command('ismaster')
+        db = client[NAZWA_BAZY_DANYCH]
+        routes_collection = db["routes"]
+        ascends_collection = db["ascends"]
+
+        # Krok 1: Znajdź wszystkie ID tras, które MAJĄ przejścia
+        # Zbieramy unikalne route_id z kolekcji ascends
+        linked_route_ids = ascends_collection.distinct("route_id")
+
+        # Krok 2: Znajdź wszystkie trasy, których _id NIE MA w liście linked_route_ids
+        # Tworzymy zapytanie, które znajdzie trasy, które nie są powiązane
+        query_for_unlinked = {
+            "_id": {"$nin": linked_route_ids}
+        }
+
+        # Opcjonalnie: możesz wyświetlić trasy do usunięcia przed faktycznym usunięciem
+        print("\nTrasy do usunięcia (nie posiadające przejść):")
+        for doc in routes_collection.find(query_for_unlinked):
+            print(f"- ID: {doc.get('_id')}, Nazwa: {doc.get('name', 'Brak nazwy')}")
+        print("---")
+
+        # Krok 3: Usuń znalezione trasy
+        result = routes_collection.delete_many(query_for_unlinked)
+        deleted_count = result.deleted_count
+        print(f"Pomyślnie usunięto {deleted_count} tras bez powiązanych przejść.")
+
+    except ConnectionFailure as e:
+        print(f"Błąd połączenia z bazą danych podczas czyszczenia tras: {e}")
+        deleted_count = -1 # Oznacza błąd
+    except Exception as e:
+        print(f"Wystąpił błąd podczas czyszczenia tras: {e}")
+        deleted_count = -1 # Oznacza błąd
+    finally:
+        if client:
+            client.close()
+    return deleted_count
+
+# Przykład użycia (możesz dodać nową trasę w Flasku, np. do panelu administracyjnego)
+@app.route('/clean_routes')
+def clean_routes_endpoint():
+    deleted = clean_unlinked_routes()
+    if deleted > -1:
+        flash(f"Usunięto {deleted} tras bez powiązanych przejść.", 'success')
+    else:
+        flash("Wystąpił błąd podczas czyszczenia tras.", 'error')
+    return redirect(url_for('index'))
+
+def clean_duplicate_ascends():
+    client = None
+    deleted_count = 0
+    duplicate_ascend_ids_to_delete = []
+
+    try:
+        client = MongoClient(CONNECTION_STRING, serverSelectionTimeoutMS=5000)
+        client.admin.command('ismaster')
+        db = client[NAZWA_BAZY_DANYCH]
+        ascends_collection = db["ascends"]
+
+        # Agregacja do znalezienia duplikatów i identyfikacji tych do usunięcia
+        # Chcemy znaleźć wszystkie dokumenty, które mają tę samą parę route_id i user,
+        # ale NIE są pierwszym dokumentem napotkanym dla tej pary (posortowanym po dacie utworzenia).
+        pipeline = [
+            {
+                '$sort': {
+                    'created_at': 1, # Sortujemy po dacie, aby łatwo wybrać najstarszy (lub najnowszy)
+                    '_id': 1 # Dodatkowo po _id dla determinizmu w przypadku tej samej daty
+                }
+            },
+            {
+                '$group': {
+                    '_id': {
+                        'route_id': '$route_id',
+                        'user': '$user'
+                    },
+                    'count': { '$sum': 1 },
+                    'first_id': { '$first': '$_id' }, # ID pierwszego napotkanego dokumentu
+                    'all_ids': { '$push': '$_id' } # Zbierz wszystkie ID w grupie
+                }
+            },
+            {
+                '$match': {
+                    'count': { '$gt': 1 } # Interesują nas tylko grupy z więcej niż jednym dokumentem
+                }
+            },
+            {
+                '$project': {
+                    '_id': 0, # Nie potrzebujemy _id z grupy
+                    'duplicate_ids': {
+                        '$filter': {
+                            'input': '$all_ids',
+                            'as': 'id',
+                            'cond': { '$ne': ['$$id', '$first_id'] } # Zostaw tylko ID, które nie są 'first_id'
+                        }
+                    }
+                }
+            }
+        ]
+
+        # Wykonaj agregację
+        duplicates_info = list(ascends_collection.aggregate(pipeline))
+
+        # Zbieranie ID duplikatów do usunięcia
+        for doc in duplicates_info:
+            duplicate_ascend_ids_to_delete.extend(doc['duplicate_ids'])
+
+        if duplicate_ascend_ids_to_delete:
+            print(f"\nZnaleziono {len(duplicate_ascend_ids_to_delete)} zduplikowanych wpisów do usunięcia:")
+            for dup_id in duplicate_ascend_ids_to_delete:
+                print(f"- Duplikat ID: {dup_id}")
+            print("---")
+
+            # Krok 3: Usuń znalezione duplikaty
+            # Usuwamy wszystkie znalezione duplikaty, czyli te, które NIE są 'first_id'
+            result = ascends_collection.delete_many({
+                "_id": {"$in": duplicate_ascend_ids_to_delete}
+            })
+            deleted_count = result.deleted_count
+            print(f"Pomyślnie usunięto {deleted_count} zduplikowanych wpisów w kolekcji ascends.")
+        else:
+            print("\nNie znaleziono zduplikowanych wpisów w kolekcji ascends.")
+
+    except ConnectionFailure as e:
+        print(f"Błąd połączenia z bazą danych podczas czyszczenia duplikatów: {e}")
+        deleted_count = -1 # Oznacza błąd
+    except Exception as e:
+        print(f"Wystąpił błąd podczas czyszczenia duplikatów: {e}")
+        deleted_count = -1 # Oznacza błąd
+    finally:
+        if client:
+            client.close()
+    return deleted_count
+
+# Przykład użycia (możesz dodać nową trasę w Flasku, np. do panelu administracyjnego)
+@app.route('/clean_duplicate_ascends')
+def clean_duplicate_ascends_endpoint():
+    deleted = clean_duplicate_ascends()
+    if deleted > -1:
+        flash(f"Usunięto {deleted} zduplikowanych przejść.", 'success')
+    else:
+        flash("Wystąpił błąd podczas czyszczenia duplikatów przejść.", 'error')
+    return redirect(url_for('index'))
 
 # Uruchomienie aplikacji Flask w trybie deweloperskim
 if __name__ == '__main__':
