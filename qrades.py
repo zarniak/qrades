@@ -105,32 +105,39 @@ def statystyka_oceny_drogi(dynamic_route_id_obj):
 def all_ascends_by_user(user_id):
     pipeline = [
         {
-            # ### PRZENIESIONY ETAP $match NA POCZĄTEK ###
             '$match': {
-                'user': user_id  # Upewnij się, że user_id ma poprawny typ (string lub ObjectId)
+                'user': user_id
             }
         },
         {
             '$lookup': {
-                'from': 'routes',  # Kolekcja do połączenia
-                'localField': 'route_id',  # Pole z kolekcji 'ascends'
-                'foreignField': '_id',  # Pole z kolekcji 'routes'
-                'as': 'route_info'  # Nazwa nowego pola zawierającego dopasowane dokumenty
+                'from': 'routes',
+                'localField': 'route_id',
+                'foreignField': '_id',
+                'as': 'route_info'
             }
         },
         {
-            '$unwind': '$route_info'  # Dekonstrukcja tablicy (zakładamy 1:1 match)
+            '$unwind': {
+                'path': '$route_info',
+                'preserveNullAndEmptyArrays': True # Zachowaj przejścia nawet bez pasującej trasy
+            }
         },
         {
-            '$project': {  # Etap do kształtowania wyjścia
-                '_id': 1,  # Zachowaj oryginalne _id z ascends
-                'grade': 1,  # Zachowaj pole grade z ascends
-                'review': 1,  # Zachowaj pole review z ascends
-                'route_id': 1,  # Zachowaj route_id z ascends
-                'user': 1,  # Zachowaj user_id z ascends
-                'route_name': '$route_info.name',  # Pobierz name z połączonego dokumentu route
-                'created_at': '$route_info.created_at',  # Pobierz name z połączonego dokumentu route
-                'route_grade': '$route_info.grade',  # Pobierz grade z połączonego dokumentu route
+            '$project': {
+                '_id': 0, # Ukryj domyślne _id przejścia
+                'grade': 1, # Stopień trudności przejścia
+                'review': 1, # Recenzja przejścia
+                'created_at': 1, # Data utworzenia przejścia
+                'route_id': '$route_id', # ObjectId trasy
+                'user': 1, # Nazwa użytkownika
+                'route_name': { '$ifNull': ['$route_info.name', 'Nieznana Trasa'] }, # Nazwa trasy z routes
+                'route_grade': { '$ifNull': ['$route_info.grade', 'N/A'] }, # Ocena trasy z routes
+            }
+        },
+        {
+            '$sort': {
+                'created_at': 1 # Sortuj chronologicznie dla wykresu
             }
         }
     ]
@@ -380,9 +387,42 @@ def ascends_by_user(user_id = None):
     if not user_id: user_id = request.cookies.get('user_name')
     dane_z_bazy, blad = all_ascends_by_user(user_id)
 
+    # --- Pobierz i przetwórz dane dla wykresu rozrzutu ---
+    scatter_data_raw, scatter_error = all_ascends_by_user(user_id)
+
+    # Definicja skali trudności (musi być zgodna z JS)
+    climbing_grades = [
+        '5c', '6a', '6a+', '6b', '6b+', '6c', '6c+',
+        '7a', '7a+', '7b', '7b+', '7c', '7c+',
+        '8a', '8a+', '8b', '8b+', '8c', '8c+',
+        '9a', '9a+', '9b', '9b+', '9c', '9c+'
+    ]
+
+    scatter_chart_data = []
+    if not scatter_error and scatter_data_raw:
+        for ascend in scatter_data_raw:
+            grade_str = ascend.get('grade') # Grade z kolekcji ascends
+            created_at_dt = ascend.get('created_at') # Datetime object from MongoDB
+
+            if grade_str and created_at_dt:
+                # Znajdź indeks stopnia w skali, dodaj 1, aby uzyskać wartość liczbową dla osi Y
+                numerical_y = climbing_grades.index(grade_str) + 1 if grade_str in climbing_grades else None
+
+                if numerical_y is not None:
+                    scatter_chart_data.append({
+                        'x': created_at_dt.strftime('%Y-%m-%d'), # Format daty dla JS
+                        'y': numerical_y
+                    })
+    # --- Koniec przetwarzania danych dla wykresu ---
+
+    return render_template('user.html',
+                           dane=dane_z_bazy,
+                           scatter_chart_data=scatter_chart_data, # Przekaż przetworzone dane dla wykresu
+                           climbing_grades=climbing_grades) # Przekaż skalę trudności do JS)
+
     # Renderuj szablon HTML, przekazując mu pobrane dane i ewentualny błąd
     # Flask automatycznie szuka szablonów w folderze 'templates'
-    return render_template('user.html', dane=dane_z_bazy, error=blad)
+    #return render_template('user.html', dane=dane_z_bazy, error=blad)
 
 @app.route('/route/<route_id_str>') # Dekorator definiuje, że ta funkcja obsłuży żądania do głównego adresu ('/')
 def ascends_by_route(route_id_str):
