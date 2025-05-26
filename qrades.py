@@ -10,7 +10,7 @@ import qrcode
 from openpyxl import Workbook
 import datetime # Do ustawienia daty ważności cookie
 
-base_url = "https://qrades.onrender.com/"
+base_url = "https://qrades.com/"
 
 load_dotenv()
 #CONNECTION_STRING = os.getenv("CONNECTION_STRING")
@@ -102,8 +102,14 @@ def statystyka_oceny_drogi(dynamic_route_id_obj):
     ]
     return pobierz_dane_z_mongo(pipeline ,"ascends")
 
-def wszystkie_dane_z_bazy(dynamic_route_id_obj = None):
+def all_ascends_by_user(user_id):
     pipeline = [
+        {
+            # ### PRZENIESIONY ETAP $match NA POCZĄTEK ###
+            '$match': {
+                'user': user_id  # Upewnij się, że user_id ma poprawny typ (string lub ObjectId)
+            }
+        },
         {
             '$lookup': {
                 'from': 'routes',  # Kolekcja do połączenia
@@ -121,20 +127,14 @@ def wszystkie_dane_z_bazy(dynamic_route_id_obj = None):
                 'grade': 1,  # Zachowaj pole grade z ascends
                 'review': 1,  # Zachowaj pole review z ascends
                 'route_id': 1,  # Zachowaj route_id z ascends
-                'user_id': 1,  # Zachowaj user_id z ascends
+                'user': 1,  # Zachowaj user_id z ascends
                 'route_name': '$route_info.name',  # Pobierz name z połączonego dokumentu route
                 'created_at': '$route_info.created_at',  # Pobierz name z połączonego dokumentu route
                 'route_grade': '$route_info.grade',  # Pobierz grade z połączonego dokumentu route
             }
         }
     ]
-    if dynamic_route_id_obj:
-        pipeline.append({
-            # Etap $match do filtrowania według dynamicznego route_id
-            '$match': {
-                'route_id': dynamic_route_id_obj  # Używamy skonwertowanego ObjectId
-            }
-        })
+
     return pobierz_dane_z_mongo(pipeline, "ascends")
 
 def pobierz_all_data():
@@ -316,7 +316,7 @@ def generate_xlsx():
         download_name='qr_codes.xlsx' # Nazwa pliku, który zostanie pobrany
     )
 
-def generuj_qr_code(dynamic_route_id_obj = None):
+def generate_qr_code(dynamic_route_id_obj = None):
     pelny_url = f"{base_url}route/{dynamic_route_id_obj}"
 
     qr = qrcode.QRCode(
@@ -372,7 +372,18 @@ def all_data():
     # Flask automatycznie szuka szablonów w folderze 'templates'
     return render_template('all_data.html', dane=dane_z_bazy, error=blad)
 
-@app.route('/<route_id_str>')
+@app.route('/user')
+@app.route('/user/<user_id>') # Dekorator definiuje, że ta funkcja obsłuży żądania do głównego adresu ('/')
+def ascends_by_user(user_id = None):
+    # --- Konwersja stringa route_id na ObjectId ---
+
+    if not user_id: user_id = request.cookies.get('user_name')
+    dane_z_bazy, blad = all_ascends_by_user(user_id)
+
+    # Renderuj szablon HTML, przekazując mu pobrane dane i ewentualny błąd
+    # Flask automatycznie szuka szablonów w folderze 'templates'
+    return render_template('user.html', dane=dane_z_bazy, error=blad)
+
 @app.route('/route/<route_id_str>') # Dekorator definiuje, że ta funkcja obsłuży żądania do głównego adresu ('/')
 def ascends_by_route(route_id_str):
     # --- Konwersja stringa route_id na ObjectId ---
@@ -394,17 +405,6 @@ def ascends_by_route(route_id_str):
         return render_template('route.html', etykiety=etykiety, wartosci=wartosci,
                                average_review=average_review,
                                initial_data={'route_id': ObjectId(route_id_str), 'user': user_from_cookie}, error=blad)
-     except InvalidId:
-        print(f"Błąd: '{route_id_str}' nie jest prawidłowym ObjectId.")
-        # Tutaj obsłuż błąd - np. zwróć błąd 400 w aplikacji webowej
-        exit() # Na potrzeby przykładu zakończ działanie skryptu
-
-@app.route('/qr/<route_id_str>') # Dekorator definiuje, że ta funkcja obsłuży żądania do głównego adresu ('/')
-def get_qr_by_route(route_id_str):
-    # --- Konwersja stringa route_id na ObjectId ---
-     try:
-        dynamic_route_id_obj = ObjectId(route_id_str)
-        return generuj_qr_code(dynamic_route_id_obj)
      except InvalidId:
         print(f"Błąd: '{route_id_str}' nie jest prawidłowym ObjectId.")
         # Tutaj obsłuż błąd - np. zwróć błąd 400 w aplikacji webowej

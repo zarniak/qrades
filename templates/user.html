@@ -1,0 +1,56 @@
+{# ### TEN SZABLON DZIEDZICZY Z base.html ### #}
+{% extends "base.html" %}
+
+{# ### DEFINIUJESZ TYLKO BLOK, KTÓRY CHCESZ ZMIENIĆ ### #}
+
+{# Nadpisz blok 'title' #}
+{% block title %}QR grades - Strona Główna{% endblock %}
+
+{# Nadpisz blok 'content' główną treścią strony głównej #}
+{% block content %}
+
+      <!--Section: Sales Performance KPIs-->
+      <section class="mb-4">
+        <div class="card">
+         <div class="card-body">
+
+            <div class="card-header text-center py-3">
+              <h5 class="mb-0 text-center">
+                <strong>User database</strong>
+              </h5>
+            </div>
+
+            <div data-mdb-datatable-init class="datatable">
+              <table id="exampleTable">
+                <thead>
+                  <tr>
+                    {# Automatyczne generowanie nagłówków na podstawie kluczy pierwszego dokumentu #}
+                    {# Zakładamy, że wszystkie dokumenty mają podobną strukturę #}
+                    {% for key in dane[0].keys() %}
+                    <th scope="col">{{ key }}</th>
+                    {% endfor %}
+                  </tr>
+                </thead>
+                <tbody>
+                   {% for dokument in dane %}
+                    <tr>
+                      {# Pętla przez wartości w danym dokumencie #}
+                      {# zeby wybrac wartosc z listy to trzeba przekonwertowac na liste #}
+                      {% set wartosci_lista = dokument.values() | list %}
+                      {% for value in wartosci_lista %}
+                        <td><a href="route/{{ wartosci_lista[0] }}">{{ value }}</a></td>
+                      {% endfor %}
+                    </tr>
+                   {% endfor %}
+                </tbody>
+              </table>
+            </div>
+
+         </div>
+        </div>
+      </section>
+      <!--Section: Sales Performance KPIs-->
+
+    {% endblock %}
+
+{# Nie definiujemy innych bloków (head_extra, scripts_extra), jeśli nie są potrzebne #}

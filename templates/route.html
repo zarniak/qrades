@@ -128,8 +128,6 @@
 
               <form method="POST" class="row gy-2 gx-3 align-items-center" action="{{ url_for('add_ascend') }}">
 
-
-
                 <div class="row g-2">
                   <div class="col-sm" data-mdb-input-init>
                     <div data-mdb-input-init class="form-outline">
@@ -201,7 +199,7 @@
         <div class="card">
           <div class="card-body">
             <h5 class="mb-0 text-center">
-              <img src="https://qrades.onrender.com/qr/{{ initial_data.route_id | default('', true) }}" class="img-fluid" id="qrCodeImage" >
+              <img src="https://qrades.com/qr/{{ initial_data.route_id | default('', true) }}" class="img-fluid" id="qrCodeImage" >
                 <p class="feedback-message" id="feedbackMessage"></p> {# Element do wyświetlania komunikatu zwrotnego #}
                     <script>
                         // Pobierz element obrazka po jego ID
