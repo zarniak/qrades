@@ -141,21 +141,17 @@
                 <div class="row g-2">
                   <div class="col-sm d-flex justify-content-center">
                       <div class="btn-group btn-group-sm">
-                    {# Pętla generująca radio buttony dla liczb od 1 do 5 #}
-                    {# range(1, 6) wygeneruje sekwencję liczb 1, 2, 3, 4, 5 #}
-                    {% for i in ["5c", "6a", "6b", "6c", "7a"] %}
-                        {# Tworzymy pojedynczy radio button #}
-                                <input class="btn-check" type="radio" autocomplete="off" id="grade_{{ i }}" {# Unikalne ID, np. review_1, review_2, ... #}
-                                    name="grade" {# Wspólna nazwa dla całej grupy #}
-                                    value="{{ i }}" {# Wartość przesyłana po zaznaczeniu (liczba jako string) #}
-                                   {% if initial_data.review is defined and initial_data.review is not none and initial_data.review == i %}checked{% endif %} {# Zaznacz, jeśli wartość w initial_data pasuje do tej opcji #}
-                                   {% if loop.first %}required{% endif %}> {# Oznacz pierwszy radio button jako wymagany (wymusza wybór z grupy) #}
-                                {# Etykieta dla danego radio buttona #}
-                                <label class="btn btn-secondary" for="grade_{{ i }}">{{ i }}</label>
-                        {# Opcjonalnie dodaj spację lub inny separator między opcjami #}
-                        {% if not loop.last %} &nbsp; {% endif %}
-                    {% endfor %}
-                        </div>
+                        {% for i in available_grades %}
+                                     <input class="btn-check" type="radio" autocomplete="off" id="grade_{{ i }}"
+                                        name="grade" {# Wspólna nazwa dla całej grupy #}
+                                        value="{{ i }}" {# Wartość przesyłana po zaznaczeniu (liczba jako string) #}
+                                       {% if initial_data.review is defined and initial_data.review is not none and initial_data.review == i %}checked{% endif %} {# Zaznacz, jeśli wartość w initial_data pasuje do tej opcji #}
+                                       {% if loop.first %}required{% endif %}> {# Oznacz pierwszy radio button jako wymagany (wymusza wybór z grupy) #}
+                                    {# Etykieta dla danego radio buttona #}
+                                    <label class="btn btn-secondary" for="grade_{{ i }}">{{ i }}</label>
+                            {% if not loop.last %} &nbsp; {% endif %}
+                        {% endfor %}
+                    </div>
                   </div>
                 </div>
 

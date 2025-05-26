@@ -21,6 +21,9 @@ app = Flask(__name__) # Inicjalizacja aplikacji Flask
 # Ustawianie SECRET_KEY jest potrzebne do działania flash messages
 app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY', 'fallback_secret_key') # Fallback na wypadek braku w .env
 
+# --- Pełna skala trudności wspinaczkowej (globalna stała) ---
+CLIMBING_GRADES = ['4a', '4b', '4c', '5a', '5b', '5c', '6a', '6b', '6c', '7a', '7b', '7c']
+
 def grades_by_route(dynamic_route_id_obj):
     pipeline = [
         {
@@ -337,7 +340,6 @@ def generate_xlsx():
     return send_file(excel_buffer, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         as_attachment=True, download_name='qr_codes.xlsx')
 
-
 @app.route('/qr/<route_id_str>')
 def get_qr_by_route(route_id_str):
     """
@@ -410,7 +412,7 @@ def ascends_by_user(user_id = None):
     scatter_data_raw, scatter_error = all_ascends_by_user(user_id)
 
     # Definicja skali trudności (musi być zgodna z JS)
-    climbing_grades = ['5a', '5b', '5c', '6a', '6b', '6c', '7a', '7b', '7c']
+    # climbing_grades = ['5a', '5b', '5c', '6a', '6b', '6c', '7a', '7b', '7c']
 
     scatter_chart_data = []
     if not scatter_error and scatter_data_raw:
@@ -420,7 +422,7 @@ def ascends_by_user(user_id = None):
 
             if grade_str and created_at_dt:
                 # Znajdź indeks stopnia w skali, dodaj 1, aby uzyskać wartość liczbową dla osi Y
-                numerical_y = climbing_grades.index(grade_str) + 1 if grade_str in climbing_grades else None
+                numerical_y = CLIMBING_GRADES.index(grade_str) + 1 if grade_str in CLIMBING_GRADES else None
 
                 if numerical_y is not None:
                     scatter_chart_data.append({
@@ -431,7 +433,7 @@ def ascends_by_user(user_id = None):
 
     return render_template('user.html', dane=dane_z_bazy, etykiety=etykiety, wartosci=wartosci,
                            scatter_chart_data=scatter_chart_data, # Przekaż przetworzone dane dla wykresu
-                           climbing_grades=climbing_grades) # Przekaż skalę trudności do JS)
+                           climbing_grades=CLIMBING_GRADES, user_name=user_id) # Przekaż skalę trudności do JS)
 
 @app.route('/route/<route_id_str>')
 def ascends_by_route(route_id_str):
@@ -449,9 +451,42 @@ def ascends_by_route(route_id_str):
     average_review = ocena_drogi[0].get('average_review') if ocena_drogi and ocena_drogi[0].get(
         'average_review') is not None else 3
 
+    available_grades_for_template = CLIMBING_GRADES  # Domyślnie pełna skala
+
+    # ### ZMIANA: Logika sugestii stopni oparta na najstarszym przejściu DANEJ TRASY ###
+
+    client = MongoClient(CONNECTION_STRING, serverSelectionTimeoutMS=5000)
+    db = client[NAZWA_BAZY_DANYCH]
+    ascends_collection = db['ascends']  # 'ascends' collection
+
+    # Znajdź najstarsze przejście dla TEJ TRASY, niezależnie od użytkownika
+    first_ascend_cursor = ascends_collection.find(
+        {"route_id": dynamic_route_id_obj}
+    ).sort("created_at", 1).limit(1)
+
+    first_ascend_doc = None
+    for doc in first_ascend_cursor:
+        first_ascend_doc = doc
+        break  # Pobierz pierwszy i zakończ
+
+    if first_ascend_doc:
+        first_grade = first_ascend_doc.get('grade')
+        if first_grade and first_grade in CLIMBING_GRADES:
+            first_grade_index = CLIMBING_GRADES.index(first_grade)
+
+            # Oblicz granice dla +/- 2 stopni
+            min_index = max(0, first_grade_index - 2)
+            max_index = min(len(CLIMBING_GRADES) - 1, first_grade_index + 2)
+
+            available_grades_for_template = CLIMBING_GRADES[min_index: max_index + 1]
+
+    if client:
+        client.close()
+
     return render_template('route.html', etykiety=etykiety, wartosci=wartosci,
                            average_review=average_review,
-                           initial_data={'route_id': ObjectId(route_id_str), 'user': user_from_cookie}, error=blad)
+                           initial_data={'route_id': ObjectId(route_id_str), 'user': user_from_cookie},
+                           available_grades=available_grades_for_template, error=blad)
 
 @app.route('/add_ascend', methods=['POST'])
 def add_ascend():
@@ -548,7 +583,6 @@ def clean_unlinked_routes():
             client.close()
     return deleted_count
 
-# Przykład użycia (możesz dodać nową trasę w Flasku, np. do panelu administracyjnego)
 @app.route('/clean_routes')
 def clean_routes_endpoint():
     deleted = clean_unlinked_routes()
@@ -642,7 +676,6 @@ def clean_duplicate_ascends():
             client.close()
     return deleted_count
 
-# Przykład użycia (możesz dodać nową trasę w Flasku, np. do panelu administracyjnego)
 @app.route('/clean_duplicate_ascends')
 def clean_duplicate_ascends_endpoint():
     deleted = clean_duplicate_ascends()

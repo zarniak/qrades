@@ -12,6 +12,11 @@
       <section class="mb-4">
         <div class="card">
           <div class="card-body">
+            <div class="card-header text-center py-3">
+              <h5 class="mb-0 text-center">
+                <strong>{{ user_name }}</strong>
+              </h5>
+            </div>
             <canvas id="scatter-chart"></canvas>
             <script type="text/javascript">
                 // Register plugins for Chart.js v3/v4
@@ -44,7 +49,6 @@
                         Chart.register(ChartZoom);
                     }
                 }
-
 
                 // Ensure the DOM is fully loaded before trying to access the canvas element
                 document.addEventListener('DOMContentLoaded', function() {
@@ -200,7 +204,6 @@
         </div>
       </section>
 
-
       <section class="mb-4">
         <div class="card">
           <div class="card-body">
@@ -273,12 +276,6 @@
       <section class="mb-4">
         <div class="card">
          <div class="card-body">
-
-            <div class="card-header text-center py-3">
-              <h5 class="mb-0 text-center">
-                <strong>User database</strong>
-              </h5>
-            </div>
 
             <div data-mdb-datatable-init class="datatable">
               <table id="exampleTable">
