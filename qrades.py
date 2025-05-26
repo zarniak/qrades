@@ -2,7 +2,6 @@ from flask import Flask, render_template, Response, request, redirect, url_for, 
 from pymongo import MongoClient
 from pymongo.errors import ConnectionFailure
 from bson.objectid import ObjectId
-from bson.errors import InvalidId
 from dotenv import load_dotenv
 from io import BytesIO
 import os
@@ -13,19 +12,16 @@ import datetime # Do ustawienia daty ważności cookie
 base_url = "https://qrades.com/"
 
 load_dotenv()
-#CONNECTION_STRING = os.getenv("CONNECTION_STRING")
 CONNECTION_STRING = os.environ.get('CONNECTION_STRING')
 NAZWA_BAZY_DANYCH = "qrades"
 NAZWA_KOLEKCJI = "ascends"
 
-# Inicjalizacja aplikacji Flask
-app = Flask(__name__)
+app = Flask(__name__) # Inicjalizacja aplikacji Flask
 
 # Ustawianie SECRET_KEY jest potrzebne do działania flash messages
 app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY', 'fallback_secret_key') # Fallback na wypadek braku w .env
 
-def statystyka_trudnosci_drogi(dynamic_route_id_obj):
-    # Definicja potoku agregacji
+def grades_by_route(dynamic_route_id_obj):
     pipeline = [
         {
             '$match': {
@@ -44,7 +40,6 @@ def statystyka_trudnosci_drogi(dynamic_route_id_obj):
             '$unwind': '$route_info'  # Dekonstrukcja tablicy (zakładamy 1:1 match)
         },
         {
-            # NOWY ETAP: $group - Grupowanie według wartości pola 'grade'
             '$group': {
                 '_id': '$grade',  # Grupowanie po wartości pola 'grade' z dokumentów wchodzących do tego etapu
                 'count': {'$sum': 1}  # Zliczenie liczby dokumentów w każdej grupie (dla każdej unikalnej oceny)
@@ -68,7 +63,7 @@ def statystyka_trudnosci_drogi(dynamic_route_id_obj):
     ]
     return pobierz_dane_z_mongo(pipeline, "ascends")
 
-def statystyka_oceny_drogi(dynamic_route_id_obj):
+def avg_review_by_route(dynamic_route_id_obj):
     pipeline = [
         {
             '$match': {
@@ -141,6 +136,48 @@ def all_ascends_by_user(user_id):
         }
     ]
 
+    return pobierz_dane_z_mongo(pipeline, "ascends")
+
+def grades_by_user(user_id):
+    pipeline = [
+        {
+            '$match': {
+                'user': user_id  # Używamy skonwertowanego ObjectId
+            }
+        },
+        {
+            '$lookup': {
+                'from': 'routes',  # Kolekcja do połączenia
+                'localField': 'route_id',  # Pole z kolekcji 'ascends'
+                'foreignField': '_id',  # Pole z kolekcji 'routes'
+                'as': 'route_info'  # Nazwa nowego pola zawierającego dopasowane dokumenty
+            }
+        },
+        {
+            '$unwind': '$route_info'  # Dekonstrukcja tablicy (zakładamy 1:1 match)
+        },
+        {
+            '$group': {
+                '_id': '$grade',  # Grupowanie po wartości pola 'grade' z dokumentów wchodzących do tego etapu
+                'count': {'$sum': 1}  # Zliczenie liczby dokumentów w każdej grupie (dla każdej unikalnej oceny)
+            }
+        },
+        {
+            '$project': {
+            '_id': 0,  # Wykluczamy domyślne pole _id z etapu $group
+            'grade': '$_id', # Tworzymy nowe pole 'grade' z wartości pola '_id' z poprzedniego etapu
+            'count': 1 # Zachowujemy pole 'count'
+        }
+        },
+        {
+            # ### NOWY ETAP: $sort - Sortowanie wyników ###
+            '$sort': {
+                'grade': 1  # Sortujemy po polu 'grade' utworzonym w poprzednim etapie
+                # 1 oznacza sortowanie rosnące (np. "4a", "5a", "6a", "6b", ...)
+                # -1 oznacza sortowanie malejące
+            }
+        }
+    ]
     return pobierz_dane_z_mongo(pipeline, "ascends")
 
 def pobierz_all_data():
@@ -264,7 +301,6 @@ def add_multiple_routes():
         "created_at": datetime.datetime.now()  # Dodaj aktualną datę i czas
     }
 
-    # Wstaw dokument do kolekcji
     client = MongoClient(CONNECTION_STRING, serverSelectionTimeoutMS=5000)  # Timeout po 5s
     # Sprawdzenie połączenia
     client.admin.command('ismaster')
@@ -279,48 +315,27 @@ def add_multiple_routes():
 
 @app.route('/generate_xlsx')
 def generate_xlsx():
-    # Dane, które mają znaleźć się w pliku XLSX
-    # Możesz to dynamicznie pobierać z bazy danych, np. wszystkie ID tras
-    # Na potrzeby przykładu użyjemy podanych przez Ciebie wartości
-    data_for_xlsx = [
-        "qrades"
-    ]
+
+    data_for_xlsx = ["qrades"]
 
     # Generuj 20 nowych identyfikatorów tras i dodaj je do listy
     for _ in range(20): # Pętla wykonująca się 20 razy
         data_for_xlsx.append(f"{base_url}route/{add_multiple_routes()}")
 
-    # Utwórz nowy skoroszyt (workbook) Excela
     workbook = Workbook()
-    # Wybierz aktywny arkusz (domyślnie "Sheet")
     sheet = workbook.active
-    # Zmień nazwę arkusza, jeśli chcesz
     sheet.title = "QR Codes"
-
-    # Dodaj nagłówek kolumny
     sheet['A1'] = "QR Code Link"
 
-    # Wypełnij kolumnę 'A' danymi
-    # Zaczynamy od wiersza 2, ponieważ wiersz 1 to nagłówek
     for index, item in enumerate(data_for_xlsx, start=2):
         sheet[f'A{index}'] = item
 
-    # Dostosuj szerokość kolumny do zawartości (opcjonalne, ale zalecane)
-    sheet.column_dimensions['A'].width = 50 # Ustaw stałą szerokość lub oblicz dynamicznie
-
-    # Zapisz skoroszyt do bufora w pamięci
-    # Jest to kluczowe, aby nie zapisywać pliku na dysku serwera, a od razu go wysłać
     excel_buffer = BytesIO()
     workbook.save(excel_buffer)
     excel_buffer.seek(0) # Przewiń bufor na początek
 
-    # Zwróć plik jako odpowiedź do pobrania
-    return send_file(
-        excel_buffer,
-        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        as_attachment=True,
-        download_name='qr_codes.xlsx' # Nazwa pliku, który zostanie pobrany
-    )
+    return send_file(excel_buffer, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True, download_name='qr_codes.xlsx')
 
 def generate_qr_code(dynamic_route_id_obj = None):
     pelny_url = f"{base_url}route/{dynamic_route_id_obj}"
@@ -329,70 +344,51 @@ def generate_qr_code(dynamic_route_id_obj = None):
         version=None,  # Automatyczny dobór wersji
         error_correction=qrcode.constants.ERROR_CORRECT_L,  # Niski poziom korekcji błędów
         box_size=10,
-        border=4,
-    )
+        border=4,)
 
-    # Dodaj dane (URL) do kodu QR
     qr.add_data(pelny_url)
-    # Dopasuj rozmiar kodu (wymagane po add_data() jeśli version=None)
     qr.make(fit=True)
 
-    # Utwórz obraz kodu QR
-    # fill_color i back_color definiują kolory kwadratów i tła
     img = qr.make_image(fill_color="black", back_color="white")
 
-    # 6. Zapisz kod QR do pliku
-    # Nazwa pliku będzie zawierać zmienny parametr, żeby łatwo je zidentyfikować
     nazwa_pliku = f"qr_codes/kod_qr_{dynamic_route_id_obj}.png"
 
-    try:
-        img.save(nazwa_pliku)
-        print(f"Zapisano: {nazwa_pliku}")
-    except Exception as e:
-        print(f"Wystąpił błąd podczas zapisu pliku {nazwa_pliku}: {e}")
+    img.save(nazwa_pliku)
 
-    #- Zapisz obraz do bufora w pamięci ---
     buffer = BytesIO()
     img.save(buffer, format='PNG') # Zapisz obraz do bufora jako PNG
     buffer.seek(0) # Przewiń bufor na początek
 
-    # --- Zwróć dane obrazu jako odpowiedź HTTP ---
     return Response(buffer.getvalue(), mimetype='image/png')
 
-# Definicja głównej trasy (route) dla strony
 @app.route('/')  # Dekorator definiuje, że ta funkcja obsłuży żądania do głównego adresu ('/')
 def index():
-    # Pobierz dane przy każdym żądaniu strony
-    dane_z_bazy, blad = pobierz_all_data()
 
-    # Renderuj szablon HTML, przekazując mu pobrane dane i ewentualny błąd
-    # Flask automatycznie szuka szablonów w folderze 'templates'
-    return render_template('index.html', dane=dane_z_bazy, error=blad)
+    return render_template('index.html')
 
 @app.route('/all_data') # Dekorator definiuje, że ta funkcja obsłuży żądania do głównego adresu ('/')
 def all_data():
     # Pobierz dane przy każdym żądaniu strony
     dane_z_bazy, blad = pobierz_all_data()
 
-    # Renderuj szablon HTML, przekazując mu pobrane dane i ewentualny błąd
-    # Flask automatycznie szuka szablonów w folderze 'templates'
     return render_template('all_data.html', dane=dane_z_bazy, error=blad)
 
 @app.route('/user')
 @app.route('/user/<user_id>') # Dekorator definiuje, że ta funkcja obsłuży żądania do głównego adresu ('/')
 def ascends_by_user(user_id = None):
-    # --- Konwersja stringa route_id na ObjectId ---
 
     if not user_id: user_id = request.cookies.get('user_name')
     dane_z_bazy, blad = all_ascends_by_user(user_id)
 
-    # --- Pobierz i przetwórz dane dla wykresu rozrzutu ---
+    trudnosci_drog, blad = grades_by_user(user_id)
+
+    etykiety = [item['grade'] for item in trudnosci_drog]
+    wartosci = [item['count'] for item in trudnosci_drog]
+
     scatter_data_raw, scatter_error = all_ascends_by_user(user_id)
 
     # Definicja skali trudności (musi być zgodna z JS)
-    climbing_grades = [
-        '5a', '5b', '5c', '6a', '6b', '6c', '7a', '7b', '7c', '8a', '8b', '8c', '9a', '9b', '9c'
-    ]
+    climbing_grades = ['5a', '5b', '5c', '6a', '6b', '6c', '7a', '7b', '7c']
 
     scatter_chart_data = []
     if not scatter_error and scatter_data_raw:
@@ -411,42 +407,30 @@ def ascends_by_user(user_id = None):
                     })
     # --- Koniec przetwarzania danych dla wykresu ---
 
-    return render_template('user.html',
-                           dane=dane_z_bazy,
+    return render_template('user.html', dane=dane_z_bazy, etykiety=etykiety, wartosci=wartosci,
                            scatter_chart_data=scatter_chart_data, # Przekaż przetworzone dane dla wykresu
                            climbing_grades=climbing_grades) # Przekaż skalę trudności do JS)
 
-    # Renderuj szablon HTML, przekazując mu pobrane dane i ewentualny błąd
-    # Flask automatycznie szuka szablonów w folderze 'templates'
-    #return render_template('user.html', dane=dane_z_bazy, error=blad)
-
-@app.route('/route/<route_id_str>') # Dekorator definiuje, że ta funkcja obsłuży żądania do głównego adresu ('/')
+@app.route('/route/<route_id_str>')
 def ascends_by_route(route_id_str):
-    # --- Konwersja stringa route_id na ObjectId ---
-     try:
-        user_from_cookie = request.cookies.get('user_name')
 
-        dynamic_route_id_obj = ObjectId(route_id_str)
-        # Pobierz dane przy każdym żądaniu strony
-        trudnosci_drog, blad = statystyka_trudnosci_drogi(dynamic_route_id_obj)
+    user_from_cookie = request.cookies.get('user_name')
 
-        etykiety = [item['grade'] for item in trudnosci_drog]  # Lista ocen
-        wartosci = [item['count'] for item in trudnosci_drog]  # Lista liczności
+    dynamic_route_id_obj = ObjectId(route_id_str)
+    trudnosci_drog, blad = grades_by_route(dynamic_route_id_obj)
 
-        ocena_drogi, blad = statystyka_oceny_drogi(dynamic_route_id_obj)
+    etykiety = [item['grade'] for item in trudnosci_drog]
+    wartosci = [item['count'] for item in trudnosci_drog]
 
-        average_review = ocena_drogi[0].get('average_review') if ocena_drogi and ocena_drogi[0].get(
-            'average_review') is not None else 3
+    ocena_drogi, blad = avg_review_by_route(dynamic_route_id_obj)
 
-        return render_template('route.html', etykiety=etykiety, wartosci=wartosci,
-                               average_review=average_review,
-                               initial_data={'route_id': ObjectId(route_id_str), 'user': user_from_cookie}, error=blad)
-     except InvalidId:
-        print(f"Błąd: '{route_id_str}' nie jest prawidłowym ObjectId.")
-        # Tutaj obsłuż błąd - np. zwróć błąd 400 w aplikacji webowej
-        exit() # Na potrzeby przykładu zakończ działanie skryptu
+    average_review = ocena_drogi[0].get('average_review') if ocena_drogi and ocena_drogi[0].get(
+        'average_review') is not None else 3
 
-# Obsługuje GET (wyświetlenie formularza) i POST (przetwarzanie danych)
+    return render_template('route.html', etykiety=etykiety, wartosci=wartosci,
+                           average_review=average_review,
+                           initial_data={'route_id': ObjectId(route_id_str), 'user': user_from_cookie}, error=blad)
+
 @app.route('/add_ascend', methods=['POST'])
 def add_ascend():
     # --- 1. Pobierz dane z formularza ---
@@ -503,7 +487,6 @@ def add_ascend():
 
 def clean_unlinked_routes():
     client = None
-    deleted_count = 0
     try:
         client = MongoClient(CONNECTION_STRING, serverSelectionTimeoutMS=5000)
         client.admin.command('ismaster')
@@ -555,7 +538,6 @@ def clean_routes_endpoint():
 
 def clean_duplicate_ascends():
     client = None
-    deleted_count = 0
     duplicate_ascend_ids_to_delete = []
 
     try:

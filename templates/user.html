@@ -4,155 +4,193 @@
 {# ### DEFINIUJESZ TYLKO BLOK, KTÓRY CHCESZ ZMIENIĆ ### #}
 
 {# Nadpisz blok 'title' #}
-{% block title %}QR grades - Strona Główna{% endblock %}
-
-{% block extra_head_scripts %}
-    {# Jeśli potrzebujesz specyficznych skryptów dla route.html, umieść je tutaj #}
-    {# Na przykład, jeśli używasz innej wersji Chart.js lub dodatkowych pluginów #}
-    {# W tym przypadku, Chart.js 2.9.4 jest już załadowany w base.html #}
- <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.4/Chart.min.js" crossorigin="anonymous"></script>
-{% endblock %}
+{% block title %}QR grades - User data{% endblock %}
 
 {# Nadpisz blok 'content' główną treścią strony głównej #}
 {% block content %}
 
-      <!-- Section: Main chart -->
       <section class="mb-4">
         <div class="card">
           <div class="card-body">
-              <canvas id="scatter-chart"></canvas>
-              <script type="text/javascript">
+            <canvas id="scatter-chart"></canvas>
+            <script type="text/javascript">
+                // Register plugins for Chart.js v3/v4
+                // Chart.register(ChartjsPluginDatalabels); // Assuming 'ChartjsPluginDatalabels' is the global name
+                // Chart.register(ChartjsPluginAnnotation); // Assuming 'ChartjsPluginAnnotation' is the global name
+                // Chart.register(ChartjsPluginZoom); // Assuming 'ChartjsPluginZoom' is the global name
+
+                // Sprawdź, czy Moment.js i Chart.js są załadowane
+                if (typeof moment === 'undefined') {
+                    console.error("Moment.js nie został załadowany. Oś czasu nie będzie działać poprawnie.");
+                }
+                if (typeof Chart === 'undefined') {
+                    console.error("Chart.js nie został załadowany.");
+                } else {
+                    // Rejestracja pluginów dla Chart.js v3/v4.
+                    // Sprawdź, czy pluginy są dostępne globalnie po załadowaniu CDN.
+                    if (typeof ChartDataLabels !== 'undefined') { // Datalabels v2.2.0 używa ChartDataLabels
+                        Chart.register(ChartDataLabels);
+                    } else {
+                        console.warn("Chart.js Datalabels plugin nie został znaleziony lub załadowany.");
+                    }
+
+                    // Plugin Annotation i Zoom mogą wymagać nowszych wersji lub innej rejestracji dla Chart.js v4.x.
+                    // W tym przykładzie zakładamy, że są one kompatybilne lub ich brak nie zepsuje wykresu.
+                    // Jeśli pojawią się błędy, sprawdź dokumentację tych pluginów dla Chart.js v4.x.
+                    if (typeof ChartAnnotation !== 'undefined') { // Nazwa globalna dla Chart.js Annotation Plugin
+                        Chart.register(ChartAnnotation);
+                    }
+                    if (typeof ChartZoom !== 'undefined') { // Nazwa globalna dla Chart.js Zoom Plugin
+                        Chart.register(ChartZoom);
+                    }
+                }
+
+
                 // Ensure the DOM is fully loaded before trying to access the canvas element
                 document.addEventListener('DOMContentLoaded', function() {
 
                     // Define the climbing grades and their numerical mapping for the Y-axis
-                    // Each grade corresponds to its index + 1 for numerical representation on the Y-axis
                     const climbingGrades = {{ climbing_grades | tojson }};
 
-                    // Example data structure that Flask would pass to this template
-                    // In your Flask route, you would process the pipeline results
-                    // to create this `chart_data` array.
-                    // Example:
-                    // chart_data = []
-                    // for ascend in all_ascends_by_user_results:
-                    //     # Assuming ascend['grade'] is '5c', '6a', etc.
-                    //     # And ascend['created_at'] is a datetime object or string 'YYYY-MM-DD'
-                    //     numerical_y = climbingGrades.indexOf(ascend['grade']) + 1
-                    //     chart_data.append({
-                    //         'x': moment(ascend['created_at']).format('YYYY-MM-DD'),
-                    //         'y': numerical_y
-                    //     })
+                    // Dane dla wykresu przekazane z Flaska
                     const chartDataFromFlask = {{ scatter_chart_data | tojson }};
 
-                    // Chart configuration object
+                    let minDate = null;
+                    let maxDate = null;
+
+                    if (chartDataFromFlask.length > 0) {
+                        chartDataFromFlask.sort((a, b) => moment(a.x).diff(moment(b.x)));
+                        minDate = moment(chartDataFromFlask[0].x).subtract(1, 'month').startOf('month');
+                        maxDate = moment(chartDataFromFlask[chartDataFromFlask.length - 1].x).add(1, 'month').endOf('month');
+                    }
+
                     const chartConfig = {
-                        type: 'scatter', // Specifies the chart type as a scatter chart
+                        type: 'scatter',
                         data: {
-                            // Data for the chart should be inside a 'datasets' array
                             datasets: [
                                 {
-                                    label: 'Twoje punkty', // Label for the dataset (can be hidden if legend is off)
-                                    data: chartDataFromFlask, // Używamy danych z Flaska
+                                    label: 'Twoje punkty',
+                                    data: chartDataFromFlask,
                                     // Dynamiczne kolorowanie punktów
-                                    pointBackgroundColor: 'rgba(54, 162, 235, 0.8)',
-                                    borderColor: 'rgba(54, 162, 235, 1)', // Kolor obramowania punktów
-                                    pointRadius: 5, // Rozmiar punktów
-                                    pointHoverRadius: 7, // Rozmiar punktów przy najechaniu
+                                    backgroundColor: function(context) { // Użyj backgroundColor zamiast pointBackgroundColor
+                                        const yValue = context.raw.y; // W Chart.js v4.x, dane punktu są w 'raw'
+                                        const grade5cIndex = climbingGrades.indexOf('6a') + 1;
+                                        const grade7aIndex = climbingGrades.indexOf('7a') + 1;
+
+                                        if (yValue < grade5cIndex) {
+                                            return 'rgba(75, 192, 192, 0.8)'; // Zielony dla < 5c
+                                        } else if (yValue >= grade7aIndex) {
+                                            return 'rgba(255, 99, 132, 0.8)'; // Czerwony dla >= 7a
+                                        } else {
+                                            return 'rgba(255, 165, 0, 1)'; // Domyślny niebieski
+                                        }
+                                    },
+                                    borderColor: function(context) { // Użyj backgroundColor zamiast pointBackgroundColor
+                                        const yValue = context.raw.y; // W Chart.js v4.x, dane punktu są w 'raw'
+                                        const grade5cIndex = climbingGrades.indexOf('6a') + 1;
+                                        const grade7aIndex = climbingGrades.indexOf('7a') + 1;
+
+                                        if (yValue < grade5cIndex) {
+                                            return 'rgba(75, 192, 192, 0.8)'; // Zielony dla < 5c
+                                        } else if (yValue >= grade7aIndex) {
+                                            return 'rgba(255, 99, 132, 0.8)'; // Czerwony dla >= 7a
+                                        } else {
+                                            return 'rgba(255, 165, 0, 1)'; // Domyślny niebieski
+                                        }
+                                    },
+                                    //borderColor: 'rgba(54, 162, 235, 1)',
+                                    pointRadius: 5,
+                                    pointHoverRadius: 7,
                                 }
                             ]
                         },
                         options: {
-                            responsive: true, // Makes the chart responsive to container size changes
-                            legend: {
-                                display: false, // Hides the legend
+                            responsive: true,
+                            // Legend configuration (dla Chart.js v4.x, pod 'plugins')
+                            plugins: {
+                                legend: {
+                                    display: false, // Hides the legend
+                                },
+                                tooltip: { // ### ZMIANA: Konfiguracja tooltipów jest teraz pod 'plugins' -> 'tooltip' ###
+                                    callbacks: {
+                                        label: function(context) { // W Chart.js v4.x, kontekst jest inny
+                                            let label = ''; // Zaczynamy od pustego stringa
+                                            const yValue = context.raw.y; // W Chart.js v4.x, dane punktu są w 'raw'
+                                            if (Number.isInteger(yValue) && yValue > 0 && yValue <= climbingGrades.length) {
+                                                label += climbingGrades[yValue - 1];
+                                            } else {
+                                                label += yValue;
+                                            }
+                                            return label;
+                                        },
+                                        title: function(context) { // W Chart.js v4.x, kontekst jest inny
+                                            // Formatuj datę z osi X w tooltipie
+                                            return moment(context[0].raw.x).format('YYYY-MM-DD'); // W Chart.js v4.x, dane punktu są w 'raw'
+                                        }
+                                    }
+                                },
+                                datalabels: { // Konfiguracja pluginu datalabels
+                                    display: false // UKRYJ TEKST PRZY PUNKTACH
+                                }
                             },
                             scales: {
-                                yAxes: [{ // Y-axis configuration
-                                    //beginAtZero: true,
-                                    // Ustaw maksymalną wartość osi Y, aby objąć wszystkie stopnie
-                                    min: 1, // ### ZMIANA: Minimalna wartość osi Y (padding) ###
-                                    max: climbingGrades.length + 1, // Dodaj 1, aby ostatni stopień był w pełni widoczny
-                                    scaleLabel: {
+                                y: { // ### ZMIANA: yAxes staje się y ###
+                                    beginAtZero: false,
+                                    min: 0.5,
+                                    max: climbingGrades.length + 0.5,
+                                    title: { // ### ZMIANA: scaleLabel staje się title ###
                                         display: false, // Ukryj tytuł osi Y
                                     },
-                                    gridLines: {
-                                        display: true, // Show grid lines for the y-axis
+                                    grid: { // ### ZMIANA: gridLines staje się grid ###
+                                        display: true,
                                         color: 'rgba(0, 0, 0, 0.1)'
                                     },
                                     ticks: {
-                                        display: true, // Show labels (values) for the y-axis
-                                        fontSize: 12,
-                                        // Callback do wyświetlania niestandardowych etykiet (stopni wspinaczkowych)
+                                        display: true,
+                                        font: { // ### ZMIANA: fontSize staje się font.size ###
+                                            size: 12
+                                        },
                                         callback: function(value, index, values) {
-                                            // Map the numerical value back to the climbing grade string
-                                            // Ensure value is an integer and within bounds of climbingGrades array
                                             if (Number.isInteger(value) && value > 0 && value <= climbingGrades.length) {
                                                 return climbingGrades[value - 1];
                                             }
-                                            return ''; // Don't display a tick for non-integer or out-of-bounds values
+                                            return '';
                                         }
                                     },
-                                }],
-                                xAxes: [{ // X-axis configuration
-                                    type: 'time', // Set axis type to 'time'
+                                },
+                                x: { // ### ZMIANA: xAxes staje się x ###
+                                    type: 'time',
                                     time: {
-                                        unit: 'month', // Jednostka wyświetlania na 'month'
+                                        unit: 'month',
                                         displayFormats: {
-                                            month: 'MMM YYYY' // Format wyświetlania dat na "Miesiąc RRRR"
+                                            month: 'MMM obliterated'
                                         },
-                                        tooltipFormat: 'YYYY-MM-DD'
+                                        tooltipFormat: 'YYYY-MM-DD',
+                                        min: minDate ? minDate.valueOf() : undefined,
+                                        max: maxDate ? maxDate.valueOf() : undefined
                                     },
-                                    gridLines: {
-                                        display: false, // Show grid lines for the x-axis
-                                        color: 'rgba(0, 0, 0, 0.1)'
+                                    grid: { // ### ZMIANA: gridLines staje się grid ###
+                                        display: false, // Ukryj linie siatki dla osi X (pionowe)
                                     },
                                     ticks: {
-                                        display: false, // Show labels (values) for the x-axis
-                                        fontSize: 12
+                                        display: false, // Ukryj etykiety (wartości) dla osi X
+                                        font: { // ### ZMIANA: fontSize staje się font.size ###
+                                            size: 12
+                                        }
                                     },
-                                    scaleLabel: {
+                                    title: { // ### ZMIANA: scaleLabel staje się title ###
                                         display: false, // Ukryj tytuł osi X
                                     }
-                                }]
-                            },
-                            tooltips: { // Konfiguracja tooltipów
-                                callbacks: {
-                                    label: function(tooltipItem, data) {
-                                        let label = ''; // Zaczynamy od pustego stringa
-
-                                        // Pobierz wartość Y z punktu
-                                        const yValue = tooltipItem.yLabel;
-                                        // Sprawdź, czy wartość Y jest liczbą całkowitą i mieści się w skali
-                                        if (Number.isInteger(yValue) && yValue > 0 && yValue <= climbingGrades.length) {
-                                            label += climbingGrades[yValue - 1]; // Zwróć stopień wspinaczkowy
-                                        } else {
-                                            // Jeśli wartość Y nie jest idealnie przypisana do stopnia (np. 2.5),
-                                            // możesz tutaj dodać logikę do zaokrąglania lub wyświetlania najbliższego stopnia,
-                                            // lub po prostu wyświetlić wartość liczbową.
-                                            label += yValue;
-                                        }
-                                        return label;
-                                    },
-                                    title: function(tooltipItem, data) {
-                                        // Formatuj datę z osi X w tooltipie
-                                        return moment(tooltipItem[0].xLabel).format('YYYY-MM-DD');
-                                    }
-                                }
-                            },
-                            plugins: {
-                                datalabels: { // Konfiguracja pluginu datalabels
-                                    display: false // UKRYJ TEKST PRZY PUNKTACH
                                 }
                             }
                         }
                     };
 
-                    // Get the canvas element by its ID
                     const ctx = document.getElementById('scatter-chart');
-
-                    // Create a new Chart instance using the canvas context and the defined chartConfig
-                    if (ctx) {
+                    if (ctx && chartDataFromFlask.length > 0) {
                         new Chart(ctx, chartConfig);
+                    } else if (ctx) {
+                        console.log("Brak danych do wyświetlenia wykresu rozrzutu.");
                     } else {
                         console.error("Canvas element with ID 'scatter-chart' not found.");
                     }
@@ -161,7 +199,75 @@
           </div>
         </div>
       </section>
-      <!-- Section: Main chart -->
+
+
+      <section class="mb-4">
+        <div class="card">
+          <div class="card-body">
+            <canvas id="bar-chart"></canvas>
+            <script type="text/javascript">
+                // Ensure the DOM is fully loaded before trying to access the canvas element
+                document.addEventListener('DOMContentLoaded', function() {
+                    // Chart data configuration
+                    const dataBar = {
+                        type: 'bar', // Specifies the chart type as a bar chart
+                        data: {
+                            // Labels for the x-axis (categories)
+                            labels: {{ etykiety | tojson }},
+                            datasets: [
+                                {
+                                    label: 'grade', // Label for the dataset
+                                    data: {{ wartosci | tojson }}, // Data points for the bars
+                                    backgroundColor: 'rgba(66,133,244,1)', // Color of the bars
+                                    borderColor: 'rgba(66,133,244,1)', // Border color of the bars
+                                    borderWidth: 1, // Border width of the bars
+                                    borderRadius: 5, // Rounded corners for bars
+                                },
+                            ],
+                        },
+                        options: {
+                            responsive: true, // Makes the chart responsive to container size changes
+                            plugins: {
+                                legend: {
+                                    display: false, // Hides the legend as there's only one dataset
+                                }
+                            },
+                            scales: {
+                                y: {
+                                    beginAtZero: true, // Start the y-axis from zero
+                                    title: {
+                                        display: false, // Hide the title for the y-axis
+                                    },
+                                    grid: {
+                                        display: false // Hide grid lines for the y-axis
+                                    },
+                                    ticks: {
+                                        display: false // Hide labels (ticks) for the y-axis
+                                    },
+                                    border: {
+                                        display: false // Hide the axis line for the y-axis
+                                    }
+                                },
+                                x: {
+                                    grid: {
+                                        display: false // Hide grid lines for the x-axis
+                                    }
+                                }
+                            }
+                        }
+                    };
+
+                    // Get the canvas element by its ID
+                    const ctx = document.getElementById('bar-chart');
+
+                    // Create a new Chart instance using the canvas context and the defined data/options
+                    new Chart(ctx, dataBar);
+                });
+            </script>
+          </div>
+        </div>
+      </section>
+
 
       <!--Section: Sales Performance KPIs-->
       <section class="mb-4">
