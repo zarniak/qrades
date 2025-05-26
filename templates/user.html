@@ -6,6 +6,13 @@
 {# Nadpisz blok 'title' #}
 {% block title %}QR grades - Strona Główna{% endblock %}
 
+{% block extra_head_scripts %}
+    {# Jeśli potrzebujesz specyficznych skryptów dla route.html, umieść je tutaj #}
+    {# Na przykład, jeśli używasz innej wersji Chart.js lub dodatkowych pluginów #}
+    {# W tym przypadku, Chart.js 2.9.4 jest już załadowany w base.html #}
+ <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.4/Chart.min.js" crossorigin="anonymous"></script>
+{% endblock %}
+
 {# Nadpisz blok 'content' główną treścią strony głównej #}
 {% block content %}
 
