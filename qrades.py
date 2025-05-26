@@ -337,29 +337,51 @@ def generate_xlsx():
     return send_file(excel_buffer, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         as_attachment=True, download_name='qr_codes.xlsx')
 
-def generate_qr_code(dynamic_route_id_obj = None):
-    pelny_url = f"{base_url}route/{dynamic_route_id_obj}"
 
-    qr = qrcode.QRCode(
-        version=None,  # Automatyczny dobór wersji
-        error_correction=qrcode.constants.ERROR_CORRECT_L,  # Niski poziom korekcji błędów
-        box_size=10,
-        border=4,)
+@app.route('/qr/<route_id_str>')
+def get_qr_by_route(route_id_str):
+    """
+    Generuje i serwuje obrazek QR kodu dla danej trasy.
+    Obrazek jest zwracany jako odpowiedź HTTP typu image/png.
+    """
+    try:
+        # base_url_for_qr to pełny URL bazowy Twojej aplikacji (np. http://127.0.0.1:5000/)
+        base_url_for_qr = request.url_root
 
-    qr.add_data(pelny_url)
-    qr.make(fit=True)
+        # Pełny URL, który zostanie zakodowany w QR kodzie
+        # Zakładamy, że masz trasę '/route/<id>' w Twojej aplikacji
+        pelny_url_dla_qr = f"{base_url_for_qr}route/{route_id_str}"
 
-    img = qr.make_image(fill_color="black", back_color="white")
+        # Inicjalizacja generatora QR kodu
+        qr = qrcode.QRCode(
+            version=None,  # Automatyczny dobór wersji
+            error_correction=qrcode.constants.ERROR_CORRECT_L,  # Niski poziom korekcji błędów
+            box_size=10,  # Rozmiar pojedynczego "kwadracika" QR
+            border=4,  # Grubość ramki wokół kodu QR
+        )
 
-    nazwa_pliku = f"qr_codes/kod_qr_{dynamic_route_id_obj}.png"
+        # Dodaj dane (URL) do QR kodu
+        qr.add_data(pelny_url_dla_qr)
+        qr.make(fit=True)  # Dopasuj rozmiar kodu
 
-    img.save(nazwa_pliku)
+        # Utwórz obrazek QR kodu
+        img = qr.make_image(fill_color="black", back_color="white")
 
-    buffer = BytesIO()
-    img.save(buffer, format='PNG') # Zapisz obraz do bufora jako PNG
-    buffer.seek(0) # Przewiń bufor na początek
+        # Zapisz obrazek do bufora w pamięci (zamiast na dysk)
+        # To kluczowy krok, aby wysłać obrazek bezpośrednio do przeglądarki
+        buffer = BytesIO()
+        img.save(buffer, format='PNG')  # Zapisz obraz do bufora jako PNG
+        buffer.seek(0)  # Przewiń bufor na początek, aby dane mogły być odczytane
 
-    return Response(buffer.getvalue(), mimetype='image/png')
+        # Zwróć odpowiedź HTTP zawierającą obrazek PNG
+        # 'mimetype='image/png'' informuje przeglądarkę, że to plik PNG
+        return Response(buffer.getvalue(), mimetype='image/png')
+
+    except Exception as e:
+        # Obsługa błędów, jeśli coś pójdzie nie tak podczas generowania
+        print(f"Wystąpił błąd podczas generowania QR kodu dla {route_id_str}: {e}")
+        return Response("Wystąpił błąd serwera podczas generowania QR kodu.", status=500)
+
 
 @app.route('/')  # Dekorator definiuje, że ta funkcja obsłuży żądania do głównego adresu ('/')
 def index():
