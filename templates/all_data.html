@@ -33,7 +33,7 @@
                     labels: {{ chart_labels | tojson }}, // Dane z Flaska (nazwy dróg)
                     datasets: [
                         {
-                            label: 'Średnia Ocena',
+                            label: 'avg review',
                             data: {{ chart_data | tojson }}, // Dane z Flaska (średnie oceny)
                             backgroundColor: 'rgba(0, 123, 255, 0.7)', // Kolor słupków
                             borderColor: 'rgba(0, 123, 255, 1)',
@@ -51,8 +51,8 @@
                             display: false // Nie pokazuj legendy, bo jest tylko jeden dataset
                         },
                         title: {
-                            display: false, // Usunięto tytuł wykresu
-                            text: '10 Dróg z Najlepszą Średnią Oceną' // Tekst tytułu, ale nie będzie wyświetlany
+                            display: true, // Usunięto tytuł wykresu
+                            text: 'Top 10 - highest review' // Tekst tytułu, ale nie będzie wyświetlany
                         }
                     },
                     scales: {
@@ -89,11 +89,14 @@
                             },
                             ticks: {
                                 color: 'rgba(0,0,0, 0.5)', // Dodano kolor ticków
+                                callback: function(value, index, values) { // ### ZMIANA: Skrócenie etykiet osi Y ###
+                                    const label = this.getLabelForValue(value);
+                                    return label.length > 10 ? label.substring(0, 7) + '...' : label;
+                                }
                             },
                         }
                     }
                 };
-
 
                 // Stwórz wykres
                 document.addEventListener('DOMContentLoaded', function() {
@@ -114,34 +117,254 @@
         </div>
       </section>
 
+       <section class="mb-4">
+        <div class="card">
+         <div class="card-body">
+
+            <canvas id="top-routes-bar-chart2"></canvas>
+            <script type="text/javascript">
+                // Sprawdź, czy Chart.js jest załadowany globalnie
+                if (typeof Chart === 'undefined') {
+                    console.error("Chart.js nie został załadowany. Wykres nie będzie działać.");
+                } else {
+                    // Pluginy Chart.js (jeśli są używane) powinny być zarejestrowane,
+                    // jeśli nie są już zarejestrowane w base.html.
+                    // W tym przypadku Chart.js v4.x jest ładowany w base.html,
+                    // więc globalny obiekt Chart powinien być dostępny.
+                    // Jeśli używasz pluginów takich jak datalabels, annotation, zoom,
+                    // upewnij się, że są one załadowane i zarejestrowane w base.html
+                    // lub tutaj, jeśli są specyficzne dla tego wykresu.
+                }
+
+                const chartData2 = {
+                    type: 'bar',
+                    labels: {{ chart_labels2 | tojson }}, // Dane z Flaska (nazwy dróg)
+                    datasets: [
+                        {
+                            label: '# ascends',
+                            data: {{ chart_data2 | tojson }}, // Dane z Flaska (średnie oceny)
+                            backgroundColor: 'rgba(0, 123, 255, 0.7)', // Kolor słupków
+                            borderColor: 'rgba(0, 123, 255, 1)',
+                            borderWidth: 1,
+                        },
+                    ],
+                };
+
+                const chartOptions2 = {
+                    indexAxis: 'y', // Wykres słupkowy poziomy
+                    responsive: true,
+                    maintainAspectRatio: false, // Pozwól na własną wysokość
+                    plugins: {
+                        legend: {
+                            display: false // Nie pokazuj legendy, bo jest tylko jeden dataset
+                        },
+                        title: {
+                            display: true, // Usunięto tytuł wykresu
+                            text: 'Top 10 - most ascends by route' // Tekst tytułu, ale nie będzie wyświetlany
+                        }
+                    },
+                    scales: {
+                        x: { // Zgodne z Chart.js v4.x (x zamiast xAxes)
+                            stacked: true, // Dodano stacked
+                            beginAtZero: true,
+                            title: { // Zgodne z Chart.js v4.x (title zamiast scaleLabel)
+                                display: false, // Usunięto nazwę osi X
+                                text: 'Średnia Ocena (1-5)' // Tekst nazwy osi X, ale nie będzie wyświetlany
+                            },
+                            max: 5, // Maksymalna ocena to 5
+                            ticks: {
+                                display: false, // ### ZMIANA: Usunięto etykiety osi X ###
+                                stepSize: 1, // Krok co 1
+                                color: 'rgba(0,0,0, 0.5)', // Dodano kolor ticków
+                            },
+                            grid: { // Zgodne z Chart.js v4.x (grid zamiast gridLines)
+                                display: false, // ### ZMIANA: Usunięto pionową siatkę osi X ###
+                                drawBorder: true,
+                                borderDash: [2], // Dodano borderDash
+                                zeroLineColor: 'rgba(0,0,0,0)', // Dodano zeroLineColor
+                                zeroLineBorderDash: [2], // Dodano zeroLineBorderDash
+                                zeroLineBorderDashOffset: [2], // Dodano zeroLineBorderDashOffset
+                            }
+                        },
+                        y: { // Zgodne z Chart.js v4.x (y zamiast yAxes)
+                            stacked: true, // Dodano stacked
+                            title: { // Zgodne z Chart.js v4.x (title zamiast scaleLabel)
+                                display: false, // Usunięto nazwę osi Y
+                                text: 'Nazwa Drogi' // Tekst nazwy osi Y, ale nie będzie wyświetlany
+                            },
+                            grid: { // Zgodne z Chart.js v4.x (grid zamiast gridLines)
+                                display: false, // Nie pokazuj siatki na osi Y
+                            },
+                            ticks: {
+                                color: 'rgba(0,0,0, 0.5)', // Dodano kolor ticków
+                                callback: function(value, index, values) { // ### ZMIANA: Skrócenie etykiet osi Y ###
+                                    const label = this.getLabelForValue(value);
+                                    return label.length > 10 ? label.substring(0, 7) + '...' : label;
+                                }
+                            },
+                        }
+                    }
+                };
+
+                // Stwórz wykres
+                document.addEventListener('DOMContentLoaded', function() {
+                    const ctx = document.getElementById('top-routes-bar-chart2');
+                    if (ctx) {
+                        new Chart(ctx, {
+                            type: 'bar',
+                            data: chartData2,
+                            options: chartOptions2,
+                        });
+                    } else {
+                        console.error("Element canvas o ID 'top-routes-bar-chart' nie został znaleziony.");
+                    }
+                });
+            </script>
+
+         </div>
+        </div>
+      </section>
+
+       <section class="mb-4">
+        <div class="card">
+         <div class="card-body">
+
+            <canvas id="top-routes-bar-chart3"></canvas>
+            <script type="text/javascript">
+                // Sprawdź, czy Chart.js jest załadowany globalnie
+                if (typeof Chart === 'undefined') {
+                    console.error("Chart.js nie został załadowany. Wykres nie będzie działać.");
+                } else {
+                    // Pluginy Chart.js (jeśli są używane) powinny być zarejestrowane,
+                    // jeśli nie są już zarejestrowane w base.html.
+                    // W tym przypadku Chart.js v4.x jest ładowany w base.html,
+                    // więc globalny obiekt Chart powinien być dostępny.
+                    // Jeśli używasz pluginów takich jak datalabels, annotation, zoom,
+                    // upewnij się, że są one załadowane i zarejestrowane w base.html
+                    // lub tutaj, jeśli są specyficzne dla tego wykresu.
+                }
+
+                const chartData3 = {
+                    type: 'bar',
+                    labels: {{ chart_labels3 | tojson }}, // Dane z Flaska (nazwy dróg)
+                    datasets: [
+                        {
+                            label: '# ascends',
+                            data: {{ chart_data3 | tojson }}, // Dane z Flaska (średnie oceny)
+                            backgroundColor: 'rgba(0, 123, 255, 0.7)', // Kolor słupków
+                            borderColor: 'rgba(0, 123, 255, 1)',
+                            borderWidth: 1,
+                        },
+                    ],
+                };
+
+                const chartOptions3 = {
+                    indexAxis: 'y', // Wykres słupkowy poziomy
+                    responsive: true,
+                    maintainAspectRatio: false, // Pozwól na własną wysokość
+                    plugins: {
+                        legend: {
+                            display: false // Nie pokazuj legendy, bo jest tylko jeden dataset
+                        },
+                        title: {
+                            display: true, // Usunięto tytuł wykresu
+                            text: 'Top 10 - most ascends by user' // Tekst tytułu, ale nie będzie wyświetlany
+                        }
+                    },
+                    scales: {
+                        x: { // Zgodne z Chart.js v4.x (x zamiast xAxes)
+                            stacked: true, // Dodano stacked
+                            beginAtZero: true,
+                            title: { // Zgodne z Chart.js v4.x (title zamiast scaleLabel)
+                                display: false, // Usunięto nazwę osi X
+                                text: 'Średnia Ocena (1-5)' // Tekst nazwy osi X, ale nie będzie wyświetlany
+                            },
+                            max: 5, // Maksymalna ocena to 5
+                            ticks: {
+                                display: false, // ### ZMIANA: Usunięto etykiety osi X ###
+                                stepSize: 1, // Krok co 1
+                                color: 'rgba(0,0,0, 0.5)', // Dodano kolor ticków
+                            },
+                            grid: { // Zgodne z Chart.js v4.x (grid zamiast gridLines)
+                                display: false, // ### ZMIANA: Usunięto pionową siatkę osi X ###
+                                drawBorder: true,
+                                borderDash: [2], // Dodano borderDash
+                                zeroLineColor: 'rgba(0,0,0,0)', // Dodano zeroLineColor
+                                zeroLineBorderDash: [2], // Dodano zeroLineBorderDash
+                                zeroLineBorderDashOffset: [2], // Dodano zeroLineBorderDashOffset
+                            }
+                        },
+                        y: { // Zgodne z Chart.js v4.x (y zamiast yAxes)
+                            stacked: true, // Dodano stacked
+                            title: { // Zgodne z Chart.js v4.x (title zamiast scaleLabel)
+                                display: false, // Usunięto nazwę osi Y
+                                text: 'Nazwa Drogi' // Tekst nazwy osi Y, ale nie będzie wyświetlany
+                            },
+                            grid: { // Zgodne z Chart.js v4.x (grid zamiast gridLines)
+                                display: false, // Nie pokazuj siatki na osi Y
+                            },
+                            ticks: {
+                                color: 'rgba(0,0,0, 0.5)', // Dodano kolor ticków
+                                callback: function(value, index, values) { // ### ZMIANA: Skrócenie etykiet osi Y ###
+                                    const label = this.getLabelForValue(value);
+                                    return label.length > 10 ? label.substring(0, 7) + '...' : label;
+                                }
+                            },
+                        }
+                    }
+                };
+
+                // Stwórz wykres
+                document.addEventListener('DOMContentLoaded', function() {
+                    const ctx = document.getElementById('top-routes-bar-chart3');
+                    if (ctx) {
+                        new Chart(ctx, {
+                            type: 'bar',
+                            data: chartData3,
+                            options: chartOptions3,
+                        });
+                    } else {
+                        console.error("Element canvas o ID 'top-routes-bar-chart' nie został znaleziony.");
+                    }
+                });
+            </script>
+
+         </div>
+        </div>
+      </section>
+
       <section class="mb-4">
         <div class="card">
          <div class="card-body">
 
             <div data-mdb-datatable-init class="datatable">
-              <table id="exampleTable">
-                <thead>
-                  <tr>
-                    {# Automatyczne generowanie nagłówków na podstawie kluczy pierwszego dokumentu #}
-                    {# Zakładamy, że wszystkie dokumenty mają podobną strukturę #}
-                    {% for key in dane[0].keys() %}
-                    <th scope="col">{{ key }}</th>
-                    {% endfor %}
-                  </tr>
-                </thead>
-                <tbody>
-                   {% for dokument in dane %}
+                 <table id="exampleTable">
+                  <thead>
                     <tr>
-                      {# Pętla przez wartości w danym dokumencie #}
-                      {# zeby wybrac wartosc z listy to trzeba przekonwertowac na liste #}
-                      {% set wartosci_lista = dokument.values() | list %}
-                      {% for value in wartosci_lista %}
-                        <td><a href="route/{{ wartosci_lista[0] }}">{{ value }}</a></td>
+                      {# Automatyczne generowanie nagłówków na podstawie kluczy pierwszego dokumentu #}
+                      {# Zakładamy, że wszystkie dokumenty mają podobną strukturę #}
+                      {% for key in dane[0].keys() %}
+                        {% if not loop.first %} {# ### ZMIANA: Pomiń pierwszą kolumnę nagłówka ### #}
+                          <th scope="col">{{ key }}</th>
+                        {% endif %}
                       {% endfor %}
                     </tr>
-                   {% endfor %}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                     {% for dokument in dane %}
+                      <tr>
+                        {# Pętla przez wartości w danym dokumencie #}
+                        {# zeby wybrac wartosc z listy to trzeba przekonwertowac na liste #}
+                        {% set wartosci_lista = dokument.values() | list %}
+                        {% for value in wartosci_lista %}
+                          {% if not loop.first %} {# ### ZMIANA: Pomiń pierwszą wartość w wierszu ### #}
+                            <td><a href="route/{{ wartosci_lista[0] }}">{{ value }}</a></td> {# Link nadal używa oryginalnego ID (pierwszego elementu listy) #}
+                          {% endif %}
+                        {% endfor %}
+                      </tr>
+                     {% endfor %}
+                  </tbody>
+                </table>
             </div>
 
          </div>

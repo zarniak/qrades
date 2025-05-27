@@ -183,7 +183,7 @@ def grades_by_user(user_id):
     ]
     return pobierz_dane_z_mongo(pipeline, "ascends")
 
-def pobierz_all_data():
+def get_all_data():
     pipeline = [
         # Etap 1: Grupuj wpisy z 'ascends' po 'route_id'
         # Oblicz średnią recenzję, zbierz wszystkie oceny dla późniejszego wyznaczenia najczęściej występującej
@@ -260,12 +260,22 @@ def pobierz_all_data():
 
         {
             '$project': {
-                '_id': '$route_info._id', # ID trasy
-                'name': '$route_info.name', # Nazwa trasy
-                'route_created_at': '$route_info.created_at', # Data utworzenia trasy (z kolekcji routes)
-                'most_frequent_grade': '$most_frequent_grade', # Najczęściej występująca ocena z wpisów
-                'average_review': { '$round': ['$average_review', 1] }, # Średnia recenzja, zaokrąglona do 1 miejsca po przecinku
-                'latest_ascend_date': '$latest_ascend_date' # DODANO: Najnowsza data wpisu (z kolekcji ascends)
+                'id': { '$concat': [{'$substrCP': [{'$toString': '$route_info._id'}, 0, 7]}, '...'] },
+                'Created': {
+                    '$dateToString': {
+                        'format': "%Y-%m-%d %H:%M",  # Format daty, godziny i minuty
+                        'date': "$route_info.created_at"  # Data utworzenia trasy (z kolekcji routes)
+                    }
+                },
+                'Name': { '$concat': [{'$substrCP': [{'$toString': '$route_info.name'}, 0, 7]}, '...'] },  # Nazwa trasy
+                'Grade': '$most_frequent_grade',  # Najczęściej występująca ocena z wpisów
+                'Review': {'$round': ['$average_review', 1]},  # Średnia recenzja, zaokrąglona do 1 miejsca po przecinku
+                'Last ascend': {
+                    '$dateToString': {
+                        'format': "%Y-%m-%d %H:%M",  # Format daty, godziny i minuty
+                        'date': "$latest_ascend_date"  # Najnowsza data wpisu (z kolekcji ascends)
+                    }
+                }
             }
         }
     ]
@@ -315,6 +325,81 @@ def top_10_routes_by_rating():
         }
     ]
     # Użyj istniejącej funkcji do pobierania danych
+    return pobierz_dane_z_mongo(pipeline, NAZWA_KOLEKCJI)
+
+def top_10_routes_by_ascends():
+    pipeline = [
+        {
+            # Zgrupuj przejścia po route_id i oblicz średnią ocenę (review)
+            '$group': {
+                '_id': '$route_id',
+                'count': { '$sum': 1 }
+            }
+        },
+        {
+            # Dołącz informacje o trasie z kolekcji 'routes'
+            '$lookup': {
+                'from': 'routes',
+                'localField': '_id',
+                'foreignField': '_id',
+                'as': 'route_info'
+            }
+        },
+        {
+            # Rozwiń tablicę route_info, jeśli istnieje (dołącz tylko matching routes)
+            '$unwind': '$route_info'
+        },
+        {
+            # Posortuj po średniej ocenie malejąco, aby najlepsze były na górze
+            '$sort': {
+                'count': -1
+            }
+        },
+        {
+            # Ogranicz wyniki do 10 najlepszych
+            '$limit': 10
+        },
+        {
+            # Projektuj pola, które chcemy zwrócić
+            '$project': {
+                '_id': 0, # Wyklucz domyślne _id grupy
+                'route_id': '$_id',
+                'route_name': '$route_info.name',
+                'count': 1
+            }
+        }
+    ]
+    # Użyj istniejącej funkcji do pobierania danych
+    return pobierz_dane_z_mongo(pipeline, NAZWA_KOLEKCJI)
+
+def top_10_users_by_ascents():
+    pipeline = [
+        {
+            # Zgrupuj przejścia po user i zlicz liczbę przejść
+            '$group': {
+                '_id': '$user',
+                'ascent_count': { '$sum': 1 }
+            }
+        },
+        {
+            # Posortuj po liczbie przejść malejąco
+            '$sort': {
+                'ascent_count': -1
+            }
+        },
+        {
+            # Ogranicz wyniki do 10 najlepszych użytkowników
+            '$limit': 10
+        },
+        {
+            # Projektuj pola, które chcemy zwrócić
+            '$project': {
+                '_id': 0, # Wyklucz domyślne _id grupy
+                'user': '$_id',
+                'ascent_count': 1
+            }
+        }
+    ]
     return pobierz_dane_z_mongo(pipeline, NAZWA_KOLEKCJI)
 
 def pobierz_dane_z_mongo(pipeline, kolekcja):
@@ -437,22 +522,28 @@ def index():
 @app.route('/all_data') # Dekorator definiuje, że ta funkcja obsłuży żądania do głównego adresu ('/')
 def all_data():
 
-    dane_z_bazy, blad = pobierz_all_data()
+    dane_z_bazy, blad = get_all_data()
 
     top_routes_data, error = top_10_routes_by_rating()
-
-    if error:
-        flash(f"Błąd podczas pobierania danych o najlepszych drogach: {error}", 'error')
-        top_routes_data = [] # Upewnij się, że dane są puste w przypadku błędu
 
     labels = [route.get('route_name', 'Brak nazwy') for route in top_routes_data]
     data_values = [route.get('average_review', 0) for route in top_routes_data]
 
-    labels.reverse()
-    data_values.reverse()
+    top_routes_data2, error = top_10_routes_by_ascends()
 
-    return render_template('all_data.html', dane=dane_z_bazy, chart_labels=labels,
-                           chart_data=data_values, error=blad)
+    labels2 = [route.get('route_name', 'Brak nazwy') for route in top_routes_data2]
+    data_values2 = [route.get('count', 0) for route in top_routes_data2]
+
+    top_routes_data3, error = top_10_users_by_ascents()
+
+    labels3 = [route.get('user', 'Brak nazwy') for route in top_routes_data3]
+    data_values3 = [route.get('ascent_count', 0) for route in top_routes_data3]
+
+    return render_template('all_data.html', dane=dane_z_bazy,
+                           chart_labels=labels, chart_data=data_values,
+                           chart_labels2=labels2, chart_data2=data_values2,
+                           chart_labels3=labels3, chart_data3=data_values3,
+                           error=blad)
 
 @app.route('/user')
 @app.route('/user/<user_id>') # Dekorator definiuje, że ta funkcja obsłuży żądania do głównego adresu ('/')
