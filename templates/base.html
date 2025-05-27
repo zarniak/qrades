@@ -32,6 +32,86 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/2.2.1/chartjs-plugin-annotation.min.js" crossorigin="anonymous"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-zoom/0.7.7/chartjs-plugin-zoom.min.js" crossorigin="anonymous"></script>
 
+  <style>
+    /* Style dla pływającej ikonki WhatsApp */
+    .whatsapp-float {
+        position: fixed;
+        width: 60px;
+        height: 60px;
+        bottom: 40px;
+        right: 40px;
+        background-color: #25d366;
+        color: #FFF;
+        border-radius: 50px;
+        text-align: center;
+        font-size: 30px;
+        box-shadow: 2px 2px 3px #999;
+        z-index: 1000; /* Upewnij się, że jest nad innymi elementami */
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        text-decoration: none; /* Usuń podkreślenie linku */
+        transition: background-color 0.3s ease;
+    }
+
+    .whatsapp-float:hover {
+        background-color: #128C7E;
+        color: #FFF; /* Utrzymaj biały kolor ikony przy najechaniu */
+    }
+
+    .whatsapp-float i {
+        margin-top: 0; /* Usuń domyślny margines Font Awesome */
+    }
+
+    /* Styl dla ukrytej ikonki */
+    .whatsapp-float.hidden {
+        display: none;
+    }
+
+    /* Style dla przycisku ukrywania/pokazywania */
+    .whatsapp-toggle-button {
+        position: fixed;
+        width: 30px; /* Mniejszy rozmiar */
+        height: 30px;
+        bottom: 105px; /* Nad ikonką WhatsApp */
+        right: 55px;
+        background-color: #6c757d; /* Szary kolor */
+        color: #FFF;
+        border-radius: 50%; /* Okrągły kształt */
+        text-align: center;
+        font-size: 16px; /* Mniejsza czcionka */
+        line-height: 30px; /* Wyśrodkowanie tekstu */
+        cursor: pointer;
+        box-shadow: 1px 1px 2px #999;
+        z-index: 1001; /* Wyżej niż WhatsApp icon */
+        transition: background-color 0.3s ease;
+    }
+
+    .whatsapp-toggle-button:hover {
+        background-color: #5a6268;
+    }
+
+
+    /* Responsywność dla mniejszych ekranów */
+    @media (max-width: 768px) {
+        .whatsapp-float {
+            width: 50px;
+            height: 50px;
+            bottom: 20px;
+            right: 20px;
+            font-size: 25px;
+        }
+        .whatsapp-toggle-button {
+            width: 25px;
+            height: 25px;
+            bottom: 80px;
+            right: 35px;
+            font-size: 14px;
+            line-height: 25px;
+        }
+    }
+  </style>
+
 </head>
 
 <body>
@@ -95,14 +175,35 @@
   </main>
   <!--Main layout-->
 
-<footer class="bg-light text-center ">
-  <!-- Copyright | <a class="text-white" href="mailto:zarniak@tlen.pl">zarniak@tlen.pl</a> -->
-  <div class="text-center p-3" style="background-color: rgba(0, 0, 0, 0.2)">
-    join <a class="text-dark" href="https://chat.whatsapp.com/KIgIbXQUOuI6w9xcHZyA0M">chat@whatsapp</a> for feedback and support | 2025
-  </div>
-  <!-- Copyright -->
-</footer>
+    <a href="https://chat.whatsapp.com/KIgIbXQUOuI6w9xcHZyA0M" class="whatsapp-float" target="_blank" rel="noopener noreferrer">
+        <i class="fab fa-whatsapp"></i> {# Ikona WhatsApp Font Awesome #}
+    </a>
 
+    <div class="whatsapp-toggle-button" id="whatsappToggleButton">
+        <i class="fas fa-eye-slash"></i> {# Ikona "oko-przekreślone" #}
+    </div>
+    <script type="text/javascript">
+        document.addEventListener('DOMContentLoaded', function() {
+            const whatsappFloat = document.querySelector('.whatsapp-float');
+            const whatsappToggleButton = document.getElementById('whatsappToggleButton');
+            const toggleIcon = whatsappToggleButton.querySelector('i');
+
+            if (whatsappToggleButton && whatsappFloat && toggleIcon) {
+                whatsappToggleButton.addEventListener('click', function() {
+                    whatsappFloat.classList.toggle('hidden'); // Przełącz klasę 'hidden'
+                    if (whatsappFloat.classList.contains('hidden')) {
+                        toggleIcon.classList.remove('fa-eye-slash');
+                        toggleIcon.classList.add('fa-eye'); // Zmień ikonę na "oko"
+                        whatsappToggleButton.title = 'Pokaż WhatsApp';
+                    } else {
+                        toggleIcon.classList.remove('fa-eye');
+                        toggleIcon.classList.add('fa-eye-slash'); // Zmień ikonę na "oko-przekreślone"
+                        whatsappToggleButton.title = 'Ukryj WhatsApp';
+                    }
+                });
+            }
+        });
+    </script>
   {# Użyj url_for('static', filename='...') #}
   <script type="text/javascript" src="{{ url_for('static', filename='js/mdb.umd.min.js') }}"></script>
 
