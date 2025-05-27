@@ -272,6 +272,51 @@ def pobierz_all_data():
 
     return pobierz_dane_z_mongo(pipeline, "ascends")
 
+def top_10_routes_by_rating():
+    pipeline = [
+        {
+            # Zgrupuj przejścia po route_id i oblicz średnią ocenę (review)
+            '$group': {
+                '_id': '$route_id',
+                'average_review': { '$avg': '$review' }
+            }
+        },
+        {
+            # Dołącz informacje o trasie z kolekcji 'routes'
+            '$lookup': {
+                'from': 'routes',
+                'localField': '_id',
+                'foreignField': '_id',
+                'as': 'route_info'
+            }
+        },
+        {
+            # Rozwiń tablicę route_info, jeśli istnieje (dołącz tylko matching routes)
+            '$unwind': '$route_info'
+        },
+        {
+            # Posortuj po średniej ocenie malejąco, aby najlepsze były na górze
+            '$sort': {
+                'average_review': -1
+            }
+        },
+        {
+            # Ogranicz wyniki do 10 najlepszych
+            '$limit': 10
+        },
+        {
+            # Projektuj pola, które chcemy zwrócić
+            '$project': {
+                '_id': 0, # Wyklucz domyślne _id grupy
+                'route_id': '$_id',
+                'route_name': '$route_info.name',
+                'average_review': { '$round': ['$average_review', 2] } # Zaokrąglij do 2 miejsc po przecinku
+            }
+        }
+    ]
+    # Użyj istniejącej funkcji do pobierania danych
+    return pobierz_dane_z_mongo(pipeline, NAZWA_KOLEKCJI)
+
 def pobierz_dane_z_mongo(pipeline, kolekcja):
     client = None
     dokumenty = []
@@ -384,7 +429,6 @@ def get_qr_by_route(route_id_str):
         print(f"Wystąpił błąd podczas generowania QR kodu dla {route_id_str}: {e}")
         return Response("Wystąpił błąd serwera podczas generowania QR kodu.", status=500)
 
-
 @app.route('/')  # Dekorator definiuje, że ta funkcja obsłuży żądania do głównego adresu ('/')
 def index():
 
@@ -392,10 +436,23 @@ def index():
 
 @app.route('/all_data') # Dekorator definiuje, że ta funkcja obsłuży żądania do głównego adresu ('/')
 def all_data():
-    # Pobierz dane przy każdym żądaniu strony
+
     dane_z_bazy, blad = pobierz_all_data()
 
-    return render_template('all_data.html', dane=dane_z_bazy, error=blad)
+    top_routes_data, error = top_10_routes_by_rating()
+
+    if error:
+        flash(f"Błąd podczas pobierania danych o najlepszych drogach: {error}", 'error')
+        top_routes_data = [] # Upewnij się, że dane są puste w przypadku błędu
+
+    labels = [route.get('route_name', 'Brak nazwy') for route in top_routes_data]
+    data_values = [route.get('average_review', 0) for route in top_routes_data]
+
+    labels.reverse()
+    data_values.reverse()
+
+    return render_template('all_data.html', dane=dane_z_bazy, chart_labels=labels,
+                           chart_data=data_values, error=blad)
 
 @app.route('/user')
 @app.route('/user/<user_id>') # Dekorator definiuje, że ta funkcja obsłuży żądania do głównego adresu ('/')

@@ -9,16 +9,114 @@
 {# Nadpisz blok 'content' główną treścią strony głównej #}
 {% block content %}
 
-      <!--Section: Sales Performance KPIs-->
       <section class="mb-4">
         <div class="card">
          <div class="card-body">
 
-            <div class="card-header text-center py-3">
-              <h5 class="mb-0 text-center">
-                <strong>Route database</strong>
-              </h5>
-            </div>
+            <canvas id="top-routes-bar-chart"></canvas>
+            <script type="text/javascript">
+                // Sprawdź, czy Chart.js jest załadowany globalnie
+                if (typeof Chart === 'undefined') {
+                    console.error("Chart.js nie został załadowany. Wykres nie będzie działać.");
+                } else {
+                    // Pluginy Chart.js (jeśli są używane) powinny być zarejestrowane,
+                    // jeśli nie są już zarejestrowane w base.html.
+                    // W tym przypadku Chart.js v4.x jest ładowany w base.html,
+                    // więc globalny obiekt Chart powinien być dostępny.
+                    // Jeśli używasz pluginów takich jak datalabels, annotation, zoom,
+                    // upewnij się, że są one załadowane i zarejestrowane w base.html
+                    // lub tutaj, jeśli są specyficzne dla tego wykresu.
+                }
+
+                const chartData = {
+                    type: 'bar',
+                    labels: {{ chart_labels | tojson }}, // Dane z Flaska (nazwy dróg)
+                    datasets: [
+                        {
+                            label: 'Średnia Ocena',
+                            data: {{ chart_data | tojson }}, // Dane z Flaska (średnie oceny)
+                            backgroundColor: 'rgba(0, 123, 255, 0.7)', // Kolor słupków
+                            borderColor: 'rgba(0, 123, 255, 1)',
+                            borderWidth: 1,
+                        },
+                    ],
+                };
+
+                const chartOptions = {
+                    indexAxis: 'y', // Wykres słupkowy poziomy
+                    responsive: true,
+                    maintainAspectRatio: false, // Pozwól na własną wysokość
+                    plugins: {
+                        legend: {
+                            display: false // Nie pokazuj legendy, bo jest tylko jeden dataset
+                        },
+                        title: {
+                            display: false, // Usunięto tytuł wykresu
+                            text: '10 Dróg z Najlepszą Średnią Oceną' // Tekst tytułu, ale nie będzie wyświetlany
+                        }
+                    },
+                    scales: {
+                        x: { // Zgodne z Chart.js v4.x (x zamiast xAxes)
+                            stacked: true, // Dodano stacked
+                            beginAtZero: true,
+                            title: { // Zgodne z Chart.js v4.x (title zamiast scaleLabel)
+                                display: false, // Usunięto nazwę osi X
+                                text: 'Średnia Ocena (1-5)' // Tekst nazwy osi X, ale nie będzie wyświetlany
+                            },
+                            max: 5, // Maksymalna ocena to 5
+                            ticks: {
+                                display: false, // ### ZMIANA: Usunięto etykiety osi X ###
+                                stepSize: 1, // Krok co 1
+                                color: 'rgba(0,0,0, 0.5)', // Dodano kolor ticków
+                            },
+                            grid: { // Zgodne z Chart.js v4.x (grid zamiast gridLines)
+                                display: false, // ### ZMIANA: Usunięto pionową siatkę osi X ###
+                                drawBorder: true,
+                                borderDash: [2], // Dodano borderDash
+                                zeroLineColor: 'rgba(0,0,0,0)', // Dodano zeroLineColor
+                                zeroLineBorderDash: [2], // Dodano zeroLineBorderDash
+                                zeroLineBorderDashOffset: [2], // Dodano zeroLineBorderDashOffset
+                            }
+                        },
+                        y: { // Zgodne z Chart.js v4.x (y zamiast yAxes)
+                            stacked: true, // Dodano stacked
+                            title: { // Zgodne z Chart.js v4.x (title zamiast scaleLabel)
+                                display: false, // Usunięto nazwę osi Y
+                                text: 'Nazwa Drogi' // Tekst nazwy osi Y, ale nie będzie wyświetlany
+                            },
+                            grid: { // Zgodne z Chart.js v4.x (grid zamiast gridLines)
+                                display: false, // Nie pokazuj siatki na osi Y
+                            },
+                            ticks: {
+                                color: 'rgba(0,0,0, 0.5)', // Dodano kolor ticków
+                            },
+                        }
+                    }
+                };
+
+
+                // Stwórz wykres
+                document.addEventListener('DOMContentLoaded', function() {
+                    const ctx = document.getElementById('top-routes-bar-chart');
+                    if (ctx) {
+                        new Chart(ctx, {
+                            type: 'bar',
+                            data: chartData,
+                            options: chartOptions,
+                        });
+                    } else {
+                        console.error("Element canvas o ID 'top-routes-bar-chart' nie został znaleziony.");
+                    }
+                });
+            </script>
+
+         </div>
+        </div>
+      </section>
+
+      <section class="mb-4">
+        <div class="card">
+         <div class="card-body">
 
             <div data-mdb-datatable-init class="datatable">
               <table id="exampleTable">
@@ -49,7 +147,6 @@
          </div>
         </div>
       </section>
-      <!--Section: Sales Performance KPIs-->
 
     {% endblock %}
 
