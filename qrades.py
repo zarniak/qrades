@@ -100,7 +100,8 @@ def avg_review_by_route(dynamic_route_id_obj):
     ]
     return pobierz_dane_z_mongo(pipeline ,"ascends")
 
-def all_ascends_by_user(user_id):
+
+def all_ascends_by_user_for_scatter(user_id):
     pipeline = [
         {
             '$match': {
@@ -130,6 +131,51 @@ def all_ascends_by_user(user_id):
                 'route_id': '$route_id', # ObjectId trasy
                 'user': 1, # Nazwa użytkownika
                 'route_name': { '$ifNull': ['$route_info.name', 'Nieznana Trasa'] }, # Nazwa trasy z routes
+            }
+        },
+        {
+            '$sort': {
+                'created_at': 1 # Sortuj chronologicznie dla wykresu
+            }
+        }
+    ]
+
+    return pobierz_dane_z_mongo(pipeline, "ascends")
+
+def all_ascends_by_user(user_id):
+    pipeline = [
+        {
+            '$match': {
+                'user': user_id
+            }
+        },
+        {
+            '$lookup': {
+                'from': 'routes',
+                'localField': 'route_id',
+                'foreignField': '_id',
+                'as': 'route_info'
+            }
+        },
+        {
+            '$unwind': {
+                'path': '$route_info',
+            }
+        },
+        {
+            '$project': {
+
+                '_id': '$route_id',
+                'id': { '$concat': [{'$substrCP': [{'$toString': '$route_id'}, 0, 7]}, '...'] },
+                'Name': { '$concat': [{'$substrCP': [{'$toString': '$route_info.name'}, 0, 7]}, '...'] },  # Nazwa trasy
+                'Grade': '$grade',  # Najczęściej występująca ocena z wpisów
+                'Review': {'$round': ['$review', 1]},  # Średnia recenzja, zaokrąglona do 1 miejsca po przecinku
+                'Date': {
+                    '$dateToString': {
+                        'format': "%Y-%m-%d %H:%M",  # Format daty, godziny i minuty
+                        'date': "$created_at"  # Najnowsza data wpisu (z kolekcji ascends)
+                    }
+                }
             }
         },
         {
@@ -557,7 +603,7 @@ def ascends_by_user(user_id = None):
     etykiety = [item['grade'] for item in trudnosci_drog]
     wartosci = [item['count'] for item in trudnosci_drog]
 
-    scatter_data_raw, scatter_error = all_ascends_by_user(user_id)
+    scatter_data_raw, scatter_error = all_ascends_by_user_for_scatter(user_id)
 
     # Definicja skali trudności (musi być zgodna z JS)
     # climbing_grades = ['5a', '5b', '5c', '6a', '6b', '6c', '7a', '7b', '7c']
