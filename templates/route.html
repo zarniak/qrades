@@ -13,6 +13,9 @@
       <section class="mb-4">
         <div class="card">
           <div class="card-body">
+            <h5 class="mb-3 text-center">
+                <strong>{{ initial_data.route_name }} : {{ initial_data.route_tag }}</strong>
+            </h5>
             <canvas id="bar-chart"></canvas>
             <script type="text/javascript">
                 // Ensure the DOM is fully loaded before trying to access the canvas element
@@ -138,14 +141,36 @@
                   </div>
                 </div>
 
+                {% if initial_data.is_first_ascent %}
+                 <div class="row g-2">
+                  <div class="col-sm" data-mdb-input-init>
+                    <div data-mdb-input-init class="form-outline">
+                        <input type="text" class="form-control" id="route_name" name="route_name" required
+                               value="{{ initial_data.route_name if initial_data.route_name is defined else '' }}">
+                        <label for="route_name" class="form-label">Route name</label>
+                    </div>
+                  </div>
+                 </div>
+
                 <div class="row g-2">
-                  <div class="col-sm d-flex justify-content-center">
-                      <div class="btn-group btn-group-sm">
+                  <div class="col-sm" data-mdb-input-init>
+                    <div data-mdb-input-init class="form-outline">
+                        <input type="text" class="form-control" id="route_tag" name="route_tag"
+                               value="{{ initial_data.route_tag if initial_data.route_tag is defined else '' }}">
+                        <label for="route_tag" class="form-label">Route tag</label>
+                    </div>
+                  </div>
+                </div>
+                {% endif %}
+
+                <div class="row g-2">
+                  <div class="col-sm d-flex flex-wrap justify-content-center">
+                      <div class="btn-group btn-group-sm d-flex flex-wrap">
                         {% for i in available_grades %}
                                      <input class="btn-check" type="radio" autocomplete="off" id="grade_{{ i }}"
                                         name="grade" {# Wspólna nazwa dla całej grupy #}
                                         value="{{ i }}" {# Wartość przesyłana po zaznaczeniu (liczba jako string) #}
-                                       {% if initial_data.review is defined and initial_data.review is not none and initial_data.review == i %}checked{% endif %} {# Zaznacz, jeśli wartość w initial_data pasuje do tej opcji #}
+                                       {% if initial_data.grade is defined and initial_data.grade is not none and initial_data.grade == i %}checked{% endif %} {# Zaznacz, jeśli wartość w initial_data pasuje do tej opcji #}
                                        {% if loop.first %}required{% endif %}> {# Oznacz pierwszy radio button jako wymagany (wymusza wybór z grupy) #}
                                     {# Etykieta dla danego radio buttona #}
                                     <label class="btn btn-secondary" for="grade_{{ i }}">{{ i }}</label>
@@ -158,15 +183,13 @@
                 <div class="row g-2">
                   <div class="col-sm d-flex justify-content-center">
                      <div class="btn-group btn-group-sm">
-                        {# Pętla generująca radio buttony dla liczb od 1 do 5 #}
-                        {# range(1, 6) wygeneruje sekwencję liczb 1, 2, 3, 4, 5 #}
                         {% for i in range(1, 6) %}
                             {# Tworzymy pojedynczy radio button #}
 
                                     <input class="btn-check" type="radio" autocomplete="off" id="review_{{ i }}" {# Unikalne ID, np. review_1, review_2, ... #}
                                         name="review" {# Wspólna nazwa dla całej grupy #}
                                         value="{{ i }}" {# Wartość przesyłana po zaznaczeniu (liczba jako string) #}
-                                       {% if initial_data.review is defined and initial_data.review is not none and initial_data.review == i %}checked{% endif %} {# Zaznacz, jeśli wartość w initial_data pasuje do tej opcji #}
+                                       {% if initial_data.review is defined and initial_data.review is not none and initial_data.review == i %}checked{% endif %}
                                        {% if loop.first %}required{% endif %}> {# Oznacz pierwszy radio button jako wymagany (wymusza wybór z grupy) #}
                                     {# Etykieta dla danego radio buttona #}
                                     <label class="btn btn-secondary" for="review_{{ i }}">{{ i }}</label>
@@ -177,6 +200,69 @@
                      </div>
                   </div>
                 </div>
+
+                <script type="text/javascript">
+                    document.addEventListener('DOMContentLoaded', function() {
+                        // Logika dla radio buttonów 'review'
+                        const reviewRadioButtons = document.querySelectorAll('input[name="review"]');
+                        const reviewLabels = document.querySelectorAll('label[for^="review_"]'); // Select labels specifically for review
+
+                        reviewRadioButtons.forEach(radio => {
+                            radio.addEventListener('change', function() {
+                                reviewLabels.forEach(label => {
+                                    label.classList.remove('btn-primary');
+                                    label.classList.add('btn-secondary');
+                                });
+                                const checkedLabel = document.querySelector(`label[for="${this.id}"]`);
+                                if (checkedLabel) {
+                                    checkedLabel.classList.remove('btn-secondary');
+                                    checkedLabel.classList.add('btn-primary');
+                                }
+                            });
+                        });
+
+                        // Logika dla radio buttonów 'grade'
+                        const gradeRadioButtons = document.querySelectorAll('input[name="grade"]');
+                        // Selektor etykiet dla grupy 'grade' - upewnij się, że jest specyficzny
+                        const gradeLabels = document.querySelectorAll('label[for^="grade_"]');
+
+                        gradeRadioButtons.forEach(radio => {
+                            radio.addEventListener('change', function() {
+                                gradeLabels.forEach(label => {
+                                    label.classList.remove('btn-primary');
+                                    label.classList.add('btn-secondary');
+                                });
+                                const checkedLabel = document.querySelector(`label[for="${this.id}"]`);
+                                if (checkedLabel) {
+                                    checkedLabel.classList.remove('btn-secondary');
+                                    checkedLabel.classList.add('btn-primary');
+                                }
+                            });
+                        });
+
+                        // ### ZMIANA: Obsługa początkowego stanu dla 'review' na DOMContentLoaded ###
+                        // Sprawdź, który radio button 'review' jest zaznaczony na początku i ustaw jego styl
+                        const initialCheckedReview = document.querySelector('input[name="review"]:checked');
+                        if (initialCheckedReview) {
+                            const initialReviewLabel = document.querySelector(`label[for="${initialCheckedReview.id}"]`);
+                            if (initialReviewLabel) {
+                                initialReviewLabel.classList.remove('btn-secondary');
+                                initialReviewLabel.classList.add('btn-primary');
+                            }
+                        }
+
+                        // Obsługa początkowego stanu dla 'grade' na DOMContentLoaded
+                        const initialCheckedGrade = document.querySelector('input[name="grade"]:checked');
+                        if (initialCheckedGrade) {
+                            const initialGradeLabel = document.querySelector(`label[for="${initialCheckedGrade.id}"]`);
+                            if (initialGradeLabel) {
+                                initialGradeLabel.classList.remove('btn-secondary');
+                                initialGradeLabel.classList.add('btn-primary');
+                            }
+                        }
+                    });
+                </script>
+
 
                 <div class="row g-2">
                   <div class="col-sm">

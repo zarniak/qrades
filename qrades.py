@@ -476,7 +476,7 @@ def pobierz_dane_z_mongo(pipeline, kolekcja):
 def add_multiple_routes():
 
     new_route_document = {
-        "name": f"Route from {datetime.datetime.now().strftime('%Y%m%d%H%M%S')}",  # Dodaj unikalną nazwę
+        #"name": f"Route from {datetime.datetime.now().strftime('%Y%m%d%H%M%S')}",  # Dodaj unikalną nazwę
         "created_at": datetime.datetime.now()  # Dodaj aktualną datę i czas
     }
 
@@ -674,12 +674,42 @@ def ascends_by_route(route_id_str):
 
             available_grades_for_template = CLIMBING_GRADES[min_index: max_index + 1]
 
+    query = {
+        "user": user_from_cookie,
+        "route_id": ObjectId(route_id_str)
+    }
+    collection = db["ascends"]
+    existing_document = collection.find_one(query)
+
+    routes_collection = db["routes"]  # Dostęp do kolekcji routes
+    route_info_doc = routes_collection.find_one({"_id": dynamic_route_id_obj})
+    route_name = route_info_doc.get('name', '') if route_info_doc else ''
+    route_tag = route_info_doc.get('tag', '') if route_info_doc else ''  # Pobierz tag, domyślnie pusty string
+
+    # Sprawdź, czy to jest pierwszy wpis dla tej trasy
+    existing_ascends_count = ascends_collection.count_documents({"route_id": dynamic_route_id_obj})
+    is_first_ascent_flag = (existing_ascends_count == 0)
+
+    initial_data_for_form = {
+        'route_id': route_id_str,
+        'user': user_from_cookie if user_from_cookie else '',  # Pre-fill user if cookie exists
+        'is_first_ascent': is_first_ascent_flag,
+        'route_name': route_name,  # Przekaż nazwę trasy do formularza
+        'route_tag': route_tag  # Przekaż tag trasy do formularza
+    }
+
+    initial_data_for_form['user'] = user_from_cookie
+    if existing_document:
+        initial_data_for_form['grade'] = existing_document.get('grade')
+        initial_data_for_form['review'] = existing_document.get('review')
+       # initial_data_for_form['user'] = existing_document.get('user')  # Ensure user is also passed
+
     if client:
         client.close()
 
     return render_template('route.html', etykiety=etykiety, wartosci=wartosci,
                            average_review=average_review,
-                           initial_data={'route_id': ObjectId(route_id_str), 'user': user_from_cookie},
+                           initial_data=initial_data_for_form,
                            available_grades=available_grades_for_template, error=blad)
 
 @app.route('/add_ascend', methods=['POST'])
@@ -689,6 +719,8 @@ def add_ascend():
     grade = request.form.get('grade')
     review_str = request.form.get('review')
     user = request.form.get('user')
+    name = request.form.get('route_name')  # Nowe pole z formularza
+    tag = request.form.get('route_tag')  # Nowe pole z formularza
 
     grade = grade.strip() # Usuń białe znaki z początku/końca
     review_int = int(review_str) # Konwersja stringa na liczbę całkowitą
@@ -728,6 +760,18 @@ def add_ascend():
         collection.update_one(query, {'$set': update_data})
     else:
         collection.insert_one(new_ascend_document)
+
+    routes_collection = db["routes"]  # Dostęp do kolekcji routes
+
+    # Jeśli to pierwszy wpis dla tej trasy (na podstawie flagi z formularza)
+    route_update_data = {}
+    if name:
+        route_update_data['name'] = name
+    if tag:  # Tag może być pusty, ale nadal chcemy go zapisać
+        route_update_data['tag'] = tag
+
+    if route_update_data:
+        routes_collection.update_one({"_id": ObjectId(route_id_str)}, {"$set": route_update_data}, upsert=False)
 
     client.close()
 
@@ -784,99 +828,6 @@ def clean_routes_endpoint():
         flash(f"Usunięto {deleted} tras bez powiązanych przejść.", 'success')
     else:
         flash("Wystąpił błąd podczas czyszczenia tras.", 'error')
-    return redirect(url_for('index'))
-
-def clean_duplicate_ascends():
-    client = None
-    duplicate_ascend_ids_to_delete = []
-
-    try:
-        client = MongoClient(CONNECTION_STRING, serverSelectionTimeoutMS=5000)
-        client.admin.command('ismaster')
-        db = client[NAZWA_BAZY_DANYCH]
-        ascends_collection = db["ascends"]
-
-        # Agregacja do znalezienia duplikatów i identyfikacji tych do usunięcia
-        # Chcemy znaleźć wszystkie dokumenty, które mają tę samą parę route_id i user,
-        # ale NIE są pierwszym dokumentem napotkanym dla tej pary (posortowanym po dacie utworzenia).
-        pipeline = [
-            {
-                '$sort': {
-                    'created_at': 1, # Sortujemy po dacie, aby łatwo wybrać najstarszy (lub najnowszy)
-                    '_id': 1 # Dodatkowo po _id dla determinizmu w przypadku tej samej daty
-                }
-            },
-            {
-                '$group': {
-                    '_id': {
-                        'route_id': '$route_id',
-                        'user': '$user'
-                    },
-                    'count': { '$sum': 1 },
-                    'first_id': { '$first': '$_id' }, # ID pierwszego napotkanego dokumentu
-                    'all_ids': { '$push': '$_id' } # Zbierz wszystkie ID w grupie
-                }
-            },
-            {
-                '$match': {
-                    'count': { '$gt': 1 } # Interesują nas tylko grupy z więcej niż jednym dokumentem
-                }
-            },
-            {
-                '$project': {
-                    '_id': 0, # Nie potrzebujemy _id z grupy
-                    'duplicate_ids': {
-                        '$filter': {
-                            'input': '$all_ids',
-                            'as': 'id',
-                            'cond': { '$ne': ['$$id', '$first_id'] } # Zostaw tylko ID, które nie są 'first_id'
-                        }
-                    }
-                }
-            }
-        ]
-
-        # Wykonaj agregację
-        duplicates_info = list(ascends_collection.aggregate(pipeline))
-
-        # Zbieranie ID duplikatów do usunięcia
-        for doc in duplicates_info:
-            duplicate_ascend_ids_to_delete.extend(doc['duplicate_ids'])
-
-        if duplicate_ascend_ids_to_delete:
-            print(f"\nZnaleziono {len(duplicate_ascend_ids_to_delete)} zduplikowanych wpisów do usunięcia:")
-            for dup_id in duplicate_ascend_ids_to_delete:
-                print(f"- Duplikat ID: {dup_id}")
-            print("---")
-
-            # Krok 3: Usuń znalezione duplikaty
-            # Usuwamy wszystkie znalezione duplikaty, czyli te, które NIE są 'first_id'
-            result = ascends_collection.delete_many({
-                "_id": {"$in": duplicate_ascend_ids_to_delete}
-            })
-            deleted_count = result.deleted_count
-            print(f"Pomyślnie usunięto {deleted_count} zduplikowanych wpisów w kolekcji ascends.")
-        else:
-            print("\nNie znaleziono zduplikowanych wpisów w kolekcji ascends.")
-
-    except ConnectionFailure as e:
-        print(f"Błąd połączenia z bazą danych podczas czyszczenia duplikatów: {e}")
-        deleted_count = -1 # Oznacza błąd
-    except Exception as e:
-        print(f"Wystąpił błąd podczas czyszczenia duplikatów: {e}")
-        deleted_count = -1 # Oznacza błąd
-    finally:
-        if client:
-            client.close()
-    return deleted_count
-
-@app.route('/clean_duplicate_ascends')
-def clean_duplicate_ascends_endpoint():
-    deleted = clean_duplicate_ascends()
-    if deleted > -1:
-        flash(f"Usunięto {deleted} zduplikowanych przejść.", 'success')
-    else:
-        flash("Wystąpił błąd podczas czyszczenia duplikatów przejść.", 'error')
     return redirect(url_for('index'))
 
 # Uruchomienie aplikacji Flask w trybie deweloperskim
