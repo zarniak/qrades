@@ -100,7 +100,6 @@ def avg_review_by_route(dynamic_route_id_obj):
     ]
     return pobierz_dane_z_mongo(pipeline ,"ascends")
 
-
 def all_ascends_by_user_for_scatter(user_id):
     pipeline = [
         {
@@ -165,9 +164,10 @@ def all_ascends_by_user(user_id):
         {
             '$project': {
 
-                '_id': '$route_id',
-                'id': { '$concat': [{'$substrCP': [{'$toString': '$route_id'}, 0, 7]}, '...'] },
+                'full_route_id': {'$toString': '$route_id'},  # <-- Dodaj to pole
+                #'_id': '$route_id',
                 'Name': { '$concat': [{'$substrCP': [{'$toString': '$route_info.name'}, 0, 7]}, '...'] },  # Nazwa trasy
+                'Tag': { '$toString': '$route_info.tag'},  # Nazwa trasy
                 'Grade': '$grade',  # Najczęściej występująca ocena z wpisów
                 'Review': {'$round': ['$review', 1]},  # Średnia recenzja, zaokrąglona do 1 miejsca po przecinku
                 'Date': {
@@ -672,6 +672,16 @@ def ascends_by_user(user_id = None):
     if not user_id: user_id = request.cookies.get('user_name')
     dane_z_bazy, blad = all_ascends_by_user(user_id)
 
+    dane_do_szablonu = []
+    for dokument in dane_z_bazy:
+        temp_dokument = {}
+        for key, value in dokument.items():
+            if isinstance(value, ObjectId):
+                temp_dokument[key] = str(value)  # Konwertuj ObjectId na string
+            else:
+                temp_dokument[key] = value
+        dane_do_szablonu.append(temp_dokument)
+
     trudnosci_drog, blad = grades_by_user(user_id)
 
     etykiety = [item['grade'] for item in trudnosci_drog]
@@ -699,7 +709,7 @@ def ascends_by_user(user_id = None):
                     })
     # --- Koniec przetwarzania danych dla wykresu ---
 
-    return render_template('user.html', dane=dane_z_bazy, etykiety=etykiety, wartosci=wartosci,
+    return render_template('user.html', dane=dane_do_szablonu, etykiety=etykiety, wartosci=wartosci,
                            scatter_chart_data=scatter_chart_data, # Przekaż przetworzone dane dla wykresu
                            climbing_grades=CLIMBING_GRADES, user_name=user_id) # Przekaż skalę trudności do JS)
 
