@@ -279,7 +279,9 @@
               </div>
               <div id="datatable2" data-mdb-sm="true">
               </div>
-
+              <button id="export-excel-btn" class="btn btn-success mb-4">
+                <i class="fas fa-file-excel"></i> Excel
+              </button>
            </div>
           </div>
         </section>
@@ -296,7 +298,6 @@
                   }
 
                   // Ukryj komórki danych w każdym wierszu (pierwsze <td> w każdym <tr> w <tbody>)
-                  // Używamy querySelectorAll do pobrania wszystkich pasujących komórek
                   const dataCells = tableElement.querySelectorAll('tbody tr td:nth-child(1)');
                   dataCells.forEach(cell => {
                       cell.style.display = 'none';
@@ -304,8 +305,8 @@
               }
           }
 
-
           document.addEventListener('DOMContentLoaded', function() {
+              // Sprawdź, czy obiekt MDB i jego komponent Datatable są dostępne
               if (typeof mdb === 'undefined' || !mdb.Datatable) {
                   console.error("MDBootstrap Datatable library is not loaded or not accessible.");
                   document.getElementById('datatable2').innerHTML = '<p class="text-danger">Błąd: Biblioteka tabeli danych nie została załadowana. Spróbuj odświeżyć stronę.</p>';
@@ -323,17 +324,18 @@
               const columnLabels = {
                   'Name': 'Name',
                   'Tag': 'Tag',
-                  'Created': 'Created',
                   'Grade': 'Grade',
                   'Review': 'Review',
-                  'Last ascend': 'Last ascend'
+                  'Date': 'Date'
               };
 
               // Dodaj ukrytą kolumnę dla pełnego ID trasy
-              // Pozostawiamy hidden: true, ale głównie polegamy na funkcji hideFirstColumn
-              columns.push({ label: 'ID (Ukryte)', field: 'full_route_id', hidden: true });
+              columns.push({ label: 'ID', field: 'full_route_id', hidden: true });
 
+              // Uwaga: 'Date' nie było w Twoim oryginalnym `columnLabels`
+              // Upewnij się, że `Created` to faktycznie 'Date' jeśli chcesz to zmienić w kodzie
               const desiredOrder = ['Name', 'Tag', 'Grade', 'Review', 'Date'];
+
 
               desiredOrder.forEach(key => {
                   if (rawData[0].hasOwnProperty(key)) {
@@ -362,7 +364,9 @@
                   if (typeof rowData.Review === 'number') {
                       rowData.Review = rowData.Review.toFixed(1);
                   }
-
+                  // Pamiętaj, aby przekazać 'Last ascend' tutaj, jeśli jest używane
+                  // Jeśli masz pole 'Date' w danych z Flask, upewnij się, że jest mapowane
+                  // rowData.Date = item.Date || 'N/A'; // Przykład, jeśli masz pole 'Date'
                   return rowData;
               });
 
@@ -383,18 +387,55 @@
                   noRecordsText: 'Brak danych do wyświetlenia.'
               });
 
-              // --- KLUCZOWE ZMIANY TUTAJ ---
-
-              // 1. Ukryj kolumnę od razu po zainicjalizowaniu tabeli
               hideFirstColumn();
 
-              // 2. Ukryj kolumnę ponownie po każdej operacji wyszukiwania
               document.getElementById('datatable-search-input').addEventListener('input', (e) => {
                 instance.search(e.target.value);
-                // Ważne: Dodajemy setTimeout(..., 0) aby dać MDBootstrap czas na przebudowanie DOM.
-                // Wykonanie funkcji w "następnym cyklu" przeglądarki.
                 setTimeout(hideFirstColumn, 0);
               });
+
+                const exportBtn = document.getElementById('export-excel-btn');
+                if (exportBtn) {
+                    exportBtn.addEventListener('click', function() {
+                        const dataToExport = [];
+
+                        // Definicja nagłówków dla eksportu.
+                        // Ważne: Kolejność tutaj określa kolejność kolumn w Excelu.
+                        // Jeśli chcesz 'ID' jako pierwszą kolumnę, umieść ją na początku.
+                        const exportHeaders = ['ID', 'Name', 'Tag', 'Grade', 'Review', 'Date']; // Zmienione na 'Last ascend' zamiast 'Date'
+
+                        dataToExport.push(exportHeaders);
+
+                        // Dodaj wiersze danych (użyj surowych danych `rawData`)
+                        rawData.forEach(item => {
+                            const row = [];
+                            // Iterujemy przez `exportHeaders` aby pobrać dane w ustalonej kolejności
+                            exportHeaders.forEach(headerKey => {
+                                let value;
+                                if (headerKey === 'ID') {
+                                    value = item['full_route_id']; // Pobieramy rzeczywistą wartość ID
+                                } else {
+                                    value = item[headerKey];
+                                }
+
+                                // Specyficzne formatowanie dla Excela (np. liczby)
+                                if (headerKey === 'Review' && typeof value === 'number') {
+                                    value = value.toFixed(1);
+                                }
+
+                                // Obsługa wartości null/undefined
+                                row.push(value === undefined || value === null ? '' : value);
+                            });
+                            dataToExport.push(row);
+                        });
+
+                        const ws = XLSX.utils.aoa_to_sheet(dataToExport);
+                        const wb = XLSX.utils.book_new();
+                        XLSX.utils.book_append_sheet(wb, ws, "User data"); // Zmieniona nazwa arkusza na bardziej ogólną
+
+                        XLSX.writeFile(wb, "user_data.xlsx"); // Zmieniona nazwa pliku na bardziej ogólną
+                    });
+                }
           });
         </script>
 

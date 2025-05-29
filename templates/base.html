@@ -24,6 +24,7 @@
   </script>
 
   <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mdb-ui-kit/7.2.0/mdb.umd.min.js"></script>
+  <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
 
   <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mdb-ui-kit/3.10.2/mdb.min.js"></script>
   <script src="https://kit.fontawesome.com/your_font_awesome_kit_code.js" crossorigin="anonymous"></script>
@@ -65,10 +66,10 @@
       /* Responsywność dla mniejszych ekranów */
       @media (max-width: 768px) {
           .whatsapp-float {
-              width: 40px;
-              height: 40px;
-              bottom: 15px;
-              right: 15px;
+              width: 50px;
+              height: 50px;
+              bottom: 20px;
+              right: 20px;
               font-size: 25px;
           }
       }
@@ -101,13 +102,13 @@
           <!-- Left links -->
           <ul class="navbar-nav me-auto mb-2 mb-lg-0">
             <li class="nav-item">
-              <a class="nav-link active" aria-current="page" href="{{ url_for('index') }}">Home</a>
+              <a class="nav-link active" aria-current="page" href="{{ url_for('index') }}"><i class="fa-solid fa-house"></i> Home</a>
             </li>
             <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('tag_data') }}">Data</a>
+              <a class="nav-link" href="{{ url_for('tag_data') }}"><i class="fa-solid fa-table"></i> Data</a>
             </li>
             <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('ascends_by_user') }}">User</a>
+              <a class="nav-link" href="{{ url_for('ascends_by_user') }}"><i class="fa-solid fa-user"></i> User</a>
             </li>
           </ul>
           <!-- Left links -->
