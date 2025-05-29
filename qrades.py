@@ -306,14 +306,16 @@ def get_all_data():
 
         {
             '$project': {
-                'id': { '$concat': [{'$substrCP': [{'$toString': '$route_info._id'}, 0, 7]}, '...'] },
+                'full_route_id': {'$toString': '$_id'},  # <-- Dodaj to pole
+                #'id': { '$concat': [{'$substrCP': [{'$toString': '$route_info._id'}, 0, 7]}, '...'] },
+                'Name': { '$toString': '$route_info.name'},  # Nazwa trasy
+                'Tag': { '$toString': '$route_info.tag'},  # Nazwa trasy
                 'Created': {
                     '$dateToString': {
                         'format': "%Y-%m-%d %H:%M",  # Format daty, godziny i minuty
                         'date': "$route_info.created_at"  # Data utworzenia trasy (z kolekcji routes)
                     }
                 },
-                'Name': { '$concat': [{'$substrCP': [{'$toString': '$route_info.name'}, 0, 7]}, '...'] },  # Nazwa trasy
                 'Grade': '$most_frequent_grade',  # Najczęściej występująca ocena z wpisów
                 'Review': {'$round': ['$average_review', 1]},  # Średnia recenzja, zaokrąglona do 1 miejsca po przecinku
                 'Last ascend': {
@@ -366,6 +368,7 @@ def top_10_routes_by_rating():
                 '_id': 0, # Wyklucz domyślne _id grupy
                 'route_id': '$_id',
                 'route_name': '$route_info.name',
+                'tag': '$route_info.tag',
                 'average_review': { '$round': ['$average_review', 2] } # Zaokrąglij do 2 miejsc po przecinku
             }
         }
@@ -411,6 +414,7 @@ def top_10_routes_by_ascends():
                 '_id': 0, # Wyklucz domyślne _id grupy
                 'route_id': '$_id',
                 'route_name': '$route_info.name',
+                'tag': '$route_info.tag',
                 'count': 1
             }
         }
@@ -421,32 +425,60 @@ def top_10_routes_by_ascends():
 def top_10_users_by_ascents():
     pipeline = [
         {
-            # Zgrupuj przejścia po user i zlicz liczbę przejść
+            # Krok 1: Połącz (lookup) z kolekcją 'routes'
+            # Łączymy przejścia z informacjami o trasach, aby uzyskać dostęp do pola 'tag'
+            '$lookup': {
+                'from': 'routes',        # Nazwa kolekcji, z którą łączymy
+                'localField': 'route_id', # Pole z kolekcji 'ascends' (obecnej)
+                'foreignField': '_id',   # Pole z kolekcji 'routes' (zewnętrznej)
+                'as': 'route_info'       # Nazwa pola, do którego zostaną dodane pasujące dokumenty z 'routes'
+            }
+        },
+        {
+            # Krok 2: Rozwiń tablicę 'route_info'
+            # '$lookup' zwraca tablicę; '$unwind' dekonstruuje ją na pojedyncze dokumenty,
+            # co jest potrzebne, jeśli chcemy działać na polach z 'route_info'.
+            # PreserveNullAndEmptyArrays: true - zachowa przejścia, dla których nie znaleziono pasującej trasy.
+            '$unwind': {
+                'path': '$route_info',
+                'preserveNullAndEmptyArrays': True
+            }
+        },
+        {
+            # Krok 3: Zgrupuj po użytkowniku i tagu trasy
+            # Jeśli użytkownik przeszedł trasy z różnymi tagami, każdy unikalny duet (user, tag)
+            # będzie osobnym wpisem w grupie.
             '$group': {
-                '_id': '$user',
+                '_id': {
+                    'user': '$user',
+                    'tag': '$route_info.tag' # Dostęp do tagu z połączonej kolekcji
+                },
                 'ascent_count': { '$sum': 1 }
             }
         },
         {
-            # Posortuj po liczbie przejść malejąco
+            # Krok 4: Projektuj pola do sortowania i wyświetlania
+            # Tworzymy płaskie pola 'user', 'tag' i 'ascent_count'
+            '$project': {
+                '_id': 0, # Wyklucz domyślne _id grupy
+                'user': '$_id.user',
+                'tag': '$_id.tag',
+                'ascent_count': 1
+            }
+        },
+        {
+            # Krok 5: Posortuj po liczbie przejść malejąco (dla pary user-tag)
             '$sort': {
                 'ascent_count': -1
             }
         },
         {
-            # Ogranicz wyniki do 10 najlepszych użytkowników
+            # Krok 6: Ogranicz wyniki do 10 (najpopularniejsze pary user-tag)
             '$limit': 10
-        },
-        {
-            # Projektuj pola, które chcemy zwrócić
-            '$project': {
-                '_id': 0, # Wyklucz domyślne _id grupy
-                'user': '$_id',
-                'ascent_count': 1
-            }
         }
     ]
-    return pobierz_dane_z_mongo(pipeline, NAZWA_KOLEKCJI)
+    # Przykładowe wywołanie funkcji do pobierania danych z MongoDB
+    return pobierz_dane_z_mongo(pipeline, "ascends") # Pamiętaj, aby uruchomić to na kolekcji 'ascends'
 
 def pobierz_dane_z_mongo(pipeline, kolekcja):
     client = None
@@ -565,31 +597,73 @@ def index():
 
     return render_template('index.html')
 
-@app.route('/all_data') # Dekorator definiuje, że ta funkcja obsłuży żądania do głównego adresu ('/')
-def all_data():
+@app.route('/tag')
+@app.route('/tag/<tag_id>') # Dekorator definiuje, że ta funkcja obsłuży żądania do głównego adresu ('/')
+def tag_data(tag_id = None):
 
-    dane_z_bazy, blad = get_all_data()
+    if tag_id:
+        all_data, error = get_all_data() # Pobierz wszystkie dane
 
-    top_routes_data, error = top_10_routes_by_rating()
+        dane_z_bazy = [
+            dokument for dokument in all_data
+            if dokument.get('Tag') == tag_id # Upewnij się, że klucz 'tag' istnieje w Twoich dokumentach
+        ]
+    else:
+        dane_z_bazy, blad = get_all_data()
+
+    dane_do_szablonu = []
+    for dokument in dane_z_bazy:
+        temp_dokument = {}
+        for key, value in dokument.items():
+            if isinstance(value, ObjectId):
+                temp_dokument[key] = str(value)  # Konwertuj ObjectId na string
+            else:
+                temp_dokument[key] = value
+        dane_do_szablonu.append(temp_dokument)
+
+    if tag_id:
+        top_routes_data, error = top_10_routes_by_rating() # Pobierz wszystkie dane
+
+        top_routes_data = [
+            dokument for dokument in top_routes_data
+            if dokument.get('tag') == tag_id # Upewnij się, że klucz 'tag' istnieje w Twoich dokumentach
+        ]
+    else:
+        top_routes_data, error = top_10_routes_by_rating()
 
     labels = [route.get('route_name', 'Brak nazwy') for route in top_routes_data]
     data_values = [route.get('average_review', 0) for route in top_routes_data]
 
-    top_routes_data2, error = top_10_routes_by_ascends()
+    if tag_id:
+        top_routes_data2, error = top_10_routes_by_ascends()  # Pobierz wszystkie dane
+
+        top_routes_data2 = [
+            dokument for dokument in top_routes_data2
+            if dokument.get('tag') == tag_id  # Upewnij się, że klucz 'tag' istnieje w Twoich dokumentach
+        ]
+    else:
+        top_routes_data2, error = top_10_routes_by_ascends()
 
     labels2 = [route.get('route_name', 'Brak nazwy') for route in top_routes_data2]
     data_values2 = [route.get('count', 0) for route in top_routes_data2]
 
-    top_routes_data3, error = top_10_users_by_ascents()
+    if tag_id:
+        top_routes_data3, error = top_10_users_by_ascents() # Pobierz wszystkie dane
+
+        top_routes_data3 = [
+            dokument for dokument in top_routes_data3
+            if dokument.get('tag') == tag_id # Upewnij się, że klucz 'tag' istnieje w Twoich dokumentach
+        ]
+    else:
+        top_routes_data3, error = top_10_users_by_ascents()
 
     labels3 = [route.get('user', 'Brak nazwy') for route in top_routes_data3]
     data_values3 = [route.get('ascent_count', 0) for route in top_routes_data3]
 
-    return render_template('all_data.html', dane=dane_z_bazy,
+    return render_template('tag.html', dane=dane_do_szablonu,
                            chart_labels=labels, chart_data=data_values,
                            chart_labels2=labels2, chart_data2=data_values2,
-                           chart_labels3=labels3, chart_data3=data_values3,
-                           error=blad)
+                           chart_labels3=labels3, chart_data3=data_values3)
 
 @app.route('/user')
 @app.route('/user/<user_id>') # Dekorator definiuje, że ta funkcja obsłuży żądania do głównego adresu ('/')

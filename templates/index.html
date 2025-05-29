@@ -4,7 +4,7 @@
 {# ### DEFINIUJESZ TYLKO BLOK, KTÓRY CHCESZ ZMIENIĆ ### #}
 
 {# Nadpisz blok 'title' #}
-{% block title %}QR grades - Main{% endblock %}
+{% block title %}qrades.com - main{% endblock %}
 
 {# Nadpisz blok 'content' główną treścią strony głównej #}
 {% block content %}
@@ -33,9 +33,9 @@
                     <h5 class="fw-bold">Climbing wall with QR codes</h5>
                     It's a simple way to gather info about routes on climbing walls with easily printed QR codes.<br><br>
                     <ul class="list-unstyled">
-                      <li class="mb-1"><i class="fas fa-check-circle me-2 text-success"></i>QR code is prepared for cheap label printers like Niimbot B1 (ca. 30$).</li>
+                      <li class="mb-1"><i class="fas fa-check-circle me-2 text-success"></i>QR code is prepared for cheap label printers like <a href="https://niimbot.pl/produkt/niimbot-b1-1-szt-rolka/">Niimbot B1</a> for ca. 50$.</li>
                       <li class="mb-1"><i class="fas fa-check-circle me-2 text-success"></i>It's <b>FREE</b> to use, hobby project for enhance climbing experience.</li>
-                      <li class="mb-1"><i class="fas fa-check-circle me-2 text-success"></i>It could be applied everywhere</li>
+                      <li class="mb-1"><i class="fas fa-check-circle me-2 text-success"></i>It could be applied to climbing gym, climbing leagues through <b>TAG</b> system.</li>
                       <li class="mb-1"><i class="fas fa-check-circle me-2 text-success"></i>For support and feedback please join this <a href="https://chat.whatsapp.com/KIgIbXQUOuI6w9xcHZyA0M">whatsapp group</a></li>
                     </ul>
                   </div>
@@ -43,7 +43,7 @@
                     <h5 class="fw-bold">Easy QR code generation</h5>
                     QR generation is simplified to minimum. Most cheap label printers could print QR from Excel list.<br><br>
                     <ul class="list-unstyled">
-                      <li class="mb-1"><i class="fas fa-check-circle me-2 text-success"></i>Click on link above "New list (xlsx)"</li>
+                      <li class="mb-1"><i class="fas fa-check-circle me-2 text-success"></i>Click on this link: <a href="{{ url_for('generate_xlsx') }}">new list (xlsx)</a></li>
                       <li class="mb-1"><i class="fas fa-check-circle me-2 text-success"></i>Download generated list in Excel</li>
                       <li class="mb-1"><i class="fas fa-check-circle me-2 text-success"></i>Print all the labels and stick it to route</li>
                       <li class="mb-1"><i class="fas fa-check-circle me-2 text-success"></i>Every QR code redirect you to individual route assessment site</li>
@@ -55,11 +55,11 @@
                     <ul class="list-unstyled">
                       <li class="mb-1"><i class="fas fa-check-circle me-2 text-success"></i>Scan QR code with your mobile</li>
                       <li class="mb-1"><i class="fas fa-check-circle me-2 text-success"></i>Fill in data: your nickname, your route grade and route assessment</li>
-                      <li class="mb-1"><i class="fas fa-check-circle me-2 text-success"></i>Your nick will be saved as cookie for further inputs</li>
+                      <li class="mb-1"><i class="fas fa-check-circle me-2 text-success"></i>Your username will be saved as cookie for further inputs</li>
                     </ul>
                   </div>
                   <div class="tab-pane fade" id="list-user" role="tabpanel" aria-labelledby="list-user-list">
-                    <h5 class="fw-bold">Simply statistics</h5>
+                    <h5 class="fw-bold">Simple statistics</h5>
                     There are few statistics available sourced from gathered data.<br><br>
                     <ul class="list-unstyled">
                       <li class="mb-1"><i class="fas fa-check-circle me-2 text-success"></i>All data - top routes and best routesetters</li>
@@ -76,7 +76,8 @@
       </section>
 
       <section class="mb-4">
-        <div class="card">
+        <div class="cardd text-center" >
+          <div class="card-header"><h5 class="fw-bold">Tutorial for climbing gym owners and routesetters</h5></div>
           <div class="card-body">
 
             <div class="video-container" style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%;">

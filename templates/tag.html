@@ -4,10 +4,156 @@
 {# ### DEFINIUJESZ TYLKO BLOK, KTÓRY CHCESZ ZMIENIĆ ### #}
 
 {# Nadpisz blok 'title' #}
-{% block title %}QR grades - All data{% endblock %}
+{% block title %}qrades.com - tag data{% endblock %}
 
 {# Nadpisz blok 'content' główną treścią strony głównej #}
 {% block content %}
+
+        <section class="mb-4">
+          <div class="card">
+           <div class="card-body">
+
+              <div data-mdb-input-init class="form-outline mb-4">
+                <input type="text" class="form-control" id="datatable-search-input" />
+                <label class="form-label" for="datatable-search-input">Search...</label>
+              </div>
+              <div id="datatable2" data-mdb-sm="true">
+              </div>
+
+           </div>
+          </div>
+        </section>
+
+        <script type="text/javascript">
+          document.addEventListener('DOMContentLoaded', function() {
+              // Sprawdź, czy obiekt MDB i jego komponent Datatable są dostępne
+              if (typeof mdb === 'undefined' || !mdb.Datatable) {
+                  console.error("MDBootstrap Datatable library is not loaded or not accessible.");
+                  document.getElementById('datatable2').innerHTML = '<p class="text-danger">Błąd: Biblioteka tabeli danych nie została załadowana. Spróbuj odświeżyć stronę.</p>';
+                  return; // Zatrzymaj wykonywanie skryptu, jeśli biblioteka nie jest dostępna
+              }
+
+              // Pobierz dane przekazane z Flaska za pomocą Jinja2 | tojson filtra
+              // Tojson bezpiecznie konwertuje dane Pythona na JSON dla JavaScriptu
+              const rawData = {{ dane | tojson }};
+
+              if (!rawData || rawData.length === 0) {
+                  document.getElementById('datatable2').innerHTML = '<p class="text-center">Brak danych do wyświetlenia.</p>';
+                  return;
+              }
+
+              // Dynamiczne generowanie kolumn (nagłówków) na podstawie pierwszego elementu danych
+              // Przyjmujemy, że 'full_route_id' będzie ukryte, a 'Name' będzie miało link
+              const columns = [];
+              const columnLabels = {
+                  'Name': 'Name',
+                  'Tag': 'Tag',
+                  'Created': 'Created',
+                  'Grade': 'Grade',
+                  'Review': 'Review',
+                  'Last ascend': 'Last ascend'
+                  // Dodaj inne mapowania, jeśli nazwy kluczy w danych różnią się od pożądanych nagłówków
+              };
+
+              // Dodaj ukrytą kolumnę dla pełnego ID trasy (potrzebna do linków)
+              columns.push({ label: 'ID (Ukryte)', field: 'full_route_id', hidden: true });
+
+              // Generuj pozostałe kolumny dynamicznie
+              // Upewnij się, że klucze są w odpowiedniej kolejności, jeśli to ważne
+              const desiredOrder = ['Name', 'Tag', 'Created', 'Grade', 'Review', 'Last ascend'];
+
+              desiredOrder.forEach(key => {
+                  if (rawData[0].hasOwnProperty(key)) { // Upewnij się, że klucz istnieje w danych
+                      columns.push({
+                          label: columnLabels[key] || key, // Użyj zdefiniowanej etykiety lub nazwy klucza
+                          field: key
+                      });
+                  }
+              });
+
+
+              // Transformacja wierszy: Konwersja na format obiektu i dodanie linków
+              const rows = rawData.map(item => {
+                  const rowData = { ...item }; // Skopiuj wszystkie dane z oryginalnego obiektu
+
+                  // Tworzenie linku dla kolumny 'Name'
+                  // Sprawdź, czy item.full_route_id istnieje, zanim użyjesz
+                  if (item.full_route_id && item.Name) {
+                      rowData.Name = `<a href="../route/${item.full_route_id}" class="text-primary text-decoration-none">${item.Name} <i class="fa-solid fa-arrow-up-right-from-square"></i></a>`;
+                  } else {
+                      rowData.Name = item.Name || 'N/A'; // Użyj nazwy lub 'N/A' jeśli brak
+                  }
+
+                  // Tworzenie linku dla kolumny 'tag'
+                  if (item.Tag) { // Upewnij się, że tag istnieje
+                      rowData.Tag = `<a href="../tag/${item.Tag}" class="text-info text-decoration-none">${item.Tag} <i class="fa-solid fa-arrow-up-right-from-square"></i></a>`;
+                  } else {
+                      rowData.Tag = 'Brak'; // Domyślna wartość, jeśli tag nie istnieje
+                  }
+
+                  // Formatowanie recenzji (jeśli jest liczbą)
+                  if (typeof rowData.Review === 'number') {
+                      rowData.Review = rowData.Review.toFixed(1); // Formatuj do jednego miejsca po przecinku
+                  }
+
+                  return rowData;
+              });
+
+              const tableData = {
+                  columns: columns,
+                  rows: rows,
+              };
+
+              // Inicjalizacja Datatable
+              const instance = new mdb.Datatable(document.getElementById('datatable2'), tableData, {
+                  loading: false,         // Pokazuje spinner ładowania
+                  pagination: true,      // Włącza paginację
+                  fixedHeader: true,     // Stały nagłówek dla przewijanych tabel
+                  hover: true,           // Podświetla wiersze po najechaniu myszką
+                  striped: false,         // Dodaje paski zebry do wierszy
+                  bordered: false,        // Dodaje obramowania do komórek
+                  sm: true,              // Używa mniejszego rozmiaru tabeli
+                  // Inne opcje MDB Datatable:
+                  entries: 10,           // Domyślna liczba wpisów na stronę
+                  noRecordsText: 'Brak danych do wyświetlenia.'
+              });
+
+              // --- DODANE KODU TUTAJ ---
+              // Po zainicjalizowaniu tabeli, możemy próbować ukryć kolumnę za pomocą metody Datatable
+              // lub przez bezpośrednią manipulację DOM/CSS.
+              // Zakładamy, że 'full_route_id' to pierwsza kolumna (indeks 0).
+              if (instance && typeof instance.update === 'function') { // Sprawdź, czy instancja i metoda update istnieją
+                  // MDB Datatable nie zawsze ma bezpośrednią metodę 'hideColumn'
+                  // Zamiast tego, możemy spróbować manipulować DOM.
+                  // Najbezpieczniej jest dodać klasę CSS, która ukryje nagłówek i komórki tej kolumny.
+
+                  // Znajdź tabelę
+                  const tableElement = document.getElementById('datatable2').querySelector('table');
+                  if (tableElement) {
+                      // Ukryj nagłówek kolumny (pierwszy <th> w <thead>)
+                      const headerCell = tableElement.querySelector('thead th:nth-child(1)'); // Pierwsza kolumna
+                      if (headerCell) {
+                          headerCell.style.display = 'none';
+                      }
+
+                      // Ukryj komórki danych w każdej row (pierwsze <td> w każdym <tr> w <tbody>)
+                      const dataRows = tableElement.querySelectorAll('tbody tr');
+                      dataRows.forEach(row => {
+                          const dataCell = row.querySelector('td:nth-child(1)'); // Pierwsza kolumna
+                          if (dataCell) {
+                              dataCell.style.display = 'none';
+                          }
+                      });
+                  }
+              }
+              // --- KONIEC DODANEGO KODU ---
+
+              // Obsługa wyszukiwania
+              document.getElementById('datatable-search-input').addEventListener('input', (e) => {
+                instance.search(e.target.value);
+              });
+          });
+        </script>
 
       <section class="mb-4">
         <div class="card">
@@ -328,44 +474,6 @@
                     }
                 });
             </script>
-
-         </div>
-        </div>
-      </section>
-
-      <section class="mb-4">
-        <div class="card">
-         <div class="card-body">
-
-            <div class="datatable" data-mdb-datatable-init data-mdb-sm="true">
-                 <table id="exampleTable">
-                  <thead>
-                    <tr>
-                      {# Automatyczne generowanie nagłówków na podstawie kluczy pierwszego dokumentu #}
-                      {# Zakładamy, że wszystkie dokumenty mają podobną strukturę #}
-                      {% for key in dane[0].keys() %}
-                        {% if not loop.first %} {# ### ZMIANA: Pomiń pierwszą kolumnę nagłówka ### #}
-                          <th scope="col">{{ key }}</th>
-                        {% endif %}
-                      {% endfor %}
-                    </tr>
-                  </thead>
-                  <tbody>
-                     {% for dokument in dane %}
-                      <tr>
-                        {# Pętla przez wartości w danym dokumencie #}
-                        {# zeby wybrac wartosc z listy to trzeba przekonwertowac na liste #}
-                        {% set wartosci_lista = dokument.values() | list %}
-                        {% for value in wartosci_lista %}
-                          {% if not loop.first %} {# ### ZMIANA: Pomiń pierwszą wartość w wierszu ### #}
-                            <td><a href="route/{{ wartosci_lista[0] }}">{{ value }}</a></td> {# Link nadal używa oryginalnego ID (pierwszego elementu listy) #}
-                          {% endif %}
-                        {% endfor %}
-                      </tr>
-                     {% endfor %}
-                  </tbody>
-                </table>
-            </div>
 
          </div>
         </div>
