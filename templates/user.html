@@ -231,6 +231,13 @@
                             plugins: {
                                 legend: {
                                     display: false, // Hides the legend as there's only one dataset
+                                },
+                                datalabels: {
+                                    color: 'white',        // Kolor tekstu wartości: biały
+                                    font: {
+                                        weight: 'bold',    // Pogrubienie tekstu wartości
+                                        size: 14           // Rozmiar czcionki (możesz dostosować)
+                                    }// Odsunięcie wartości od krawędzi słupka
                                 }
                             },
                             scales: {
@@ -270,7 +277,7 @@
       </section>
 
         <section class="mb-4">
-          <div class="card text-center">
+          <div class="card">
            <div class="card-body">
 
               <div data-mdb-input-init class="form-outline mb-4">
@@ -279,9 +286,11 @@
               </div>
               <div id="datatable2" data-mdb-sm="true">
               </div>
-              <button id="export-excel-btn" class="btn btn-success">
-                <i class="fas fa-file-excel"></i> Excel
-              </button>
+              <div class="card-footer text-center">
+                <button id="export-excel-btn" class="btn btn-success">
+                    <i class="fas fa-file-excel"></i> Excel
+                </button>
+              </div>
            </div>
           </div>
         </section>

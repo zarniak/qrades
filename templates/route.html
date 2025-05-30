@@ -192,7 +192,7 @@
                                        {% if initial_data.review is defined and initial_data.review is not none and initial_data.review == i %}checked{% endif %}
                                        {% if loop.first %}required{% endif %}> {# Oznacz pierwszy radio button jako wymagany (wymusza wybór z grupy) #}
                                     {# Etykieta dla danego radio buttona #}
-                                    <label class="btn btn-secondary" for="review_{{ i }}">{{ i }}</label>
+                                    <label class="btn btn-secondary" for="review_{{ i }}">{{ i }} <i class="far fa-star"></i></label>
                             {# Opcjonalnie dodaj spację lub inny separator między opcjami #}
 
                             {% if not loop.last %} &nbsp; {% endif %}
