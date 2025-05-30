@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="pl" xmlns="http://www.w3.org/1999/html">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Strona z własnym Autouzupełnianiem (Przykładowe Dane)</title>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/mdb-ui-kit/7.2.0/mdb.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
+
+    <style>
+      /* Nadaje pozycjonowanie dla elementu nadrzędnego (form-outline), wymagane dla position: absolute child */
+      .form-outline {
+          position: relative; /* Ważne! Pozwala na pozycjonowanie listy sugestii względem tego elementu */
+      }
+
+      /* Styl kontenera sugestii autouzupełniania */
+      .autocomplete-items {
+        position: absolute; /* Pozycjonowanie względem rodzica (.form-outline) */
+        border: 1px solid #d4d4d4;
+        z-index: 9999; /* Bardzo wysoki z-index, aby być na wierzchu innych elementów */
+        width: 100%; /* Domyślna szerokość na 100% rodzica (.form-outline) */
+        max-height: 200px; /* Maksymalna wysokość z przewijaniem */
+        overflow-y: auto;
+        background-color: #fff; /* Białe tło dla sugestii */
+        box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2); /* Lekki cień */
+        display: none; /* Domyślnie ukryj, pokażemy JS-em */
+        top: 100%; /* Umieść listę pod inputem */
+        left: 0;
+        right: 0;
+      }
+
+      /* Styl dla pojedynczych sugestii */
+      .autocomplete-items div {
+        padding: 10px;
+        cursor: pointer;
+        background-color: #f1f1f1; /* Lekko szare tło */
+        border-bottom: 1px solid #d4d4d4;
+      }
+
+      /* Styl dla aktywnej/podświetlonej sugestii (najechane myszką lub zaznaczone klawiszami) */
+      .autocomplete-items div:hover,
+      .autocomplete-active {
+        background-color: #4285F4 !important; /* Kolor MDB primary (niebieski) */
+        color: white !important; /* Biały tekst */
+      }
+    </style>
+</head>
+<body>
+
+<section class="mb-4">
+  <div class="card">
+   <div class="card-body">
+
+      <div class="row g-2 mb-4">
+        <div class="col-sm">
+          <div class="form-outline">
+              <input type="text" class="form-control" id="route_tag" name="route_tag"
+                     value="" placeholder="Wpisz tag...">
+              <label for="route_tag" class="form-label">Route tag</label>
+          </div>
+          <div id="autocomplete-list" class="autocomplete-items"></div>
+        </div>
+      </div>
+      </div>
+  </div>
+
+    <div id="auto-select" class="form-outline" data-mdb-input-init>
+  <input type="text" id="form1" class="form-control" />
+  <label class="form-label" for="form1">Example label</label>
+</div>
+</section>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mdb-ui-kit/7.2.0/mdb.umd.min.js"></script>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+<script type="text/javascript">
+// Initialization for ES Users
+import { Input, Autocomplete, initMDB } from "mdb-ui-kit";
+
+initMDB({ Input });
+
+const autoSelectAutocomplete = document.querySelector('#auto-select');
+const data = ['One', 'Two', 'Three', 'Four', 'Five'];
+const dataFilter = (value) => {
+  return data.filter((item) => {
+    return item.toLowerCase().startsWith(value.toLowerCase());
+  });
+};
+
+new Autocomplete(autoSelectAutocomplete, {
+  filter: dataFilter,
+  autoSelect: true
+});
+</script>
+
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mdb-ui-kit/7.2.0/mdb.umd.min.js"></script>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+
+
+<script type="text/javascript">
+  document.addEventListener('DOMContentLoaded', function() {
+    const routeTagInput = document.getElementById('route_tag');
+    const autocompleteList = document.getElementById('autocomplete-list');
+
+    // !!! PRZYKŁADOWE DANE ZAMIAST DANYCH Z FLASKA !!!
+    const allAvailableTags = [
+        "sport", "bouldering", "trad", "wspinaczka", "alpines",
+        "turystyka", "jaskinia", "woda", "lodowisko", "góry",
+        "miasto", "las", "plaża", "rzeka", "jezioro",
+        "zima", "lato", "jesień", "wiosna", "outdoor", "indoor"
+    ];
+
+    // Podstawowe sprawdzenie, czy elementy i dane są dostępne
+    if (!routeTagInput || !autocompleteList || !Array.isArray(allAvailableTags)) {
+      console.error("Błąd inicjalizacji autouzupełniania: Brak elementu input, listy sugestii lub dane tagów nie są tablicą.");
+      if (routeTagInput) routeTagInput.disabled = true;
+      return;
+    }
+
+    let currentActive = -1; // Śledzi, która sugestia jest aktywna (podświetlona)
+
+    // Funkcja czyszcząca i ukrywająca listę sugestii
+    function closeAllLists() {
+      autocompleteList.innerHTML = '';
+      autocompleteList.style.display = 'none';
+      currentActive = -1;
+    }
+
+    // Funkcja dodająca klasę 'autocomplete-active' do sugestii
+    function addActive(x) {
+      if (!x) return false;
+      removeActive(x);
+      currentActive = (currentActive + x.length) % x.length;
+      x[currentActive].classList.add('autocomplete-active');
+      x[currentActive].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+
+    // Funkcja usuwająca klasę 'autocomplete-active'
+    function removeActive(x) {
+      for (let i = 0; i < x.length; i++) {
+        x[i].classList.remove('autocomplete-active');
+      }
+    }
+
+    // Funkcja wyświetlająca sugestie
+    function showSuggestions(inputValue) {
+      closeAllLists();
+
+      // Opcjonalnie: jeśli chcesz pokazać wszystkie sugestie, gdy pole jest puste,
+      // zmień ten warunek lub zmień `filteredTags` na `allAvailableTags`
+      if (inputValue.length === 0) {
+        // Możesz tutaj wywołać `closeAllLists(); return;` jeśli nie chcesz pokazywać nic na pustym polu
+        // LUB: pokazać wszystkie dostępne tagi, np. filteredTags = allAvailableTags;
+      }
+
+      const filteredTags = allAvailableTags.filter(tag =>
+        tag.toLowerCase().includes(inputValue.toLowerCase()) // Filtruj tagi, które zawierają wpisany tekst
+      );
+
+      if (filteredTags.length === 0) {
+        autocompleteList.style.display = 'none';
+        return;
+      }
+
+      filteredTags.forEach((tag) => {
+        const suggestionDiv = document.createElement('div');
+        // Pogrubienie dopasowanego tekstu (opcjonalne)
+        suggestionDiv.innerHTML = tag.replace(new RegExp(inputValue, 'gi'), match => `<strong>${match}</strong>`);
+
+        // Dodaj obsługę kliknięcia na sugestii
+        suggestionDiv.addEventListener('click', function(e) {
+          routeTagInput.value = tag;
+          closeAllLists();
+        });
+        autocompleteList.appendChild(suggestionDiv);
+      });
+
+      autocompleteList.style.display = 'block'; // Pokaż listę sugestii
+    }
+
+    // --- Obsługa zdarzeń na polu input ---
+
+    // Gdy użytkownik wpisuje tekst
+    routeTagInput.addEventListener('input', function() {
+      showSuggestions(this.value);
+    });
+
+    // Gdy użytkownik naciska klawisze (strzałki, Enter)
+    routeTagInput.addEventListener('keydown', function(e) {
+      let x = autocompleteList.getElementsByTagName('div');
+
+      if (e.key === 'ArrowDown') {
+        currentActive++;
+        addActive(x);
+        e.preventDefault();
+      } else if (e.key === 'ArrowUp') {
+        currentActive--;
+        addActive(x);
+        e.preventDefault();
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (currentActive > -1) {
+          if (x[currentActive]) {
+            x[currentActive].click();
+          }
+        } else {
+            closeAllLists();
+        }
+      }
+    });
+
+    // Ukryj sugestie po kliknięciu poza polem input i listą sugestii
+    document.addEventListener('click', function (e) {
+      if (e.target !== routeTagInput && e.target !== autocompleteList && !autocompleteList.contains(e.target)) {
+        closeAllLists();
+      }
+    });
+
+    // Opcjonalnie: Pokaż sugestie po kliknięciu w puste pole input (bez wpisywania)
+    routeTagInput.addEventListener('focus', function() {
+        if (this.value === '') {
+            showSuggestions('');
+        } else {
+            showSuggestions(this.value);
+        }
+    });
+
+    // --- Inicjalizacja innych komponentów MDBootstrap, jeśli ich używasz ---
+    // Pamiętaj, że ten plik HTML jest uproszczony do samego autouzupełniania.
+    // Jeśli używasz Datatable, Chart.js itp., musisz dodać ich kod inicjalizacyjny tutaj.
+    // Upewnij się, że są one inicjowane po sprawdzeniu ich dostępności (jak w poprzednich wersjach).
+  });
+</script>
+
+</body>
+</html>

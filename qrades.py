@@ -330,6 +330,63 @@ def get_all_data():
 
     return pobierz_dane_z_mongo(pipeline, "ascends")
 
+def get_unique_tags():
+    pipeline = [
+        {
+            # Krok 1: Połącz kolekcję 'ascends' z kolekcją 'routes'
+            # Umożliwia dostęp do pola 'tag' z kolekcji 'routes'
+            '$lookup': {
+                'from': 'routes',        # Nazwa kolekcji, z którą łączymy
+                'localField': 'route_id', # Pole z kolekcji 'ascends' (obecnej)
+                'foreignField': '_id',   # Pole z kolekcji 'routes' (zewnętrznej, zwykle _id trasy)
+                'as': 'route_info'       # Nazwa pola, do którego zostaną dodane pasujące dokumenty z 'routes'
+            }
+        },
+        {
+            # Krok 2: Rozpakuj tablicę 'route_info'
+            # '$lookup' zwraca tablicę; '$unwind' dekonstruuje ją.
+            # To jest ważne, ponieważ pozwoli nam bezpośrednio odwołać się do 'route_info.tag'.
+            # preserveNullAndEmptyArrays: true - zachowa przejścia, dla których nie znaleziono pasującej trasy,
+            # w tym przypadku ich tag będzie null, co możemy odfiltrować później, jeśli chcemy.
+            '$unwind': {
+                'path': '$route_info',
+                'preserveNullAndEmptyArrays': False # Zmieniono na False, aby pominąć przejścia bez pasującej trasy
+                                                   # Jeśli chcesz uwzględniać null, ustaw na True.
+            }
+        },
+        {
+            # Krok 3: Wybierz tylko te dokumenty, które mają pole 'tag' i nie jest ono nullem
+            '$match': {
+                'route_info.tag': { '$exists': True, '$ne': None }
+            }
+        },
+        {
+            # Krok 4: Zgrupuj wszystkie dokumenty, aby zebrać unikalne tagi
+            # '$group' z '_id: "$route_info.tag"' sprawi, że każde unikalne pole 'tag' stanie się identyfikatorem grupy.
+            # Dzięki temu w rezultacie dostaniemy listę unikalnych tagów.
+            '$group': {
+                '_id': '$route_info.tag'
+            }
+        },
+        {
+            # Krok 5: Projektuj wyniki, aby zwrócić tylko sam tag w prostszej formie
+            # Usunięcie domyślnego pola '_id' i nazwanie pola wyników 'tag'.
+            '$project': {
+                #'_id': 0, # Wyklucz domyślne _id grupy
+                'tag': '$_id' # Przenieś wartość z _id do nowego pola 'tag'
+            }
+        },
+        {
+            # Krok 6: Opcjonalnie posortuj tagi alfabetycznie
+            '$sort': {
+                'tag': 1
+            }
+        }
+    ]
+    # Przykładowe wywołanie funkcji do pobierania danych z MongoDB.
+    # Upewnij się, że masz zdefiniowaną funkcję `pobierz_dane_z_mongo`.
+    return pobierz_dane_z_mongo(pipeline, "ascends")
+
 def top_10_routes_by_rating():
     pipeline = [
         {
@@ -527,7 +584,7 @@ def add_multiple_routes():
 @app.route('/generate_xlsx')
 def generate_xlsx():
 
-    data_for_xlsx = ["qrades"]
+    data_for_xlsx = []
 
     # Generuj 20 nowych identyfikatorów tras i dodaj je do listy
     for _ in range(20): # Pętla wykonująca się 20 razy
@@ -712,6 +769,12 @@ def ascends_by_user(user_id = None):
     return render_template('user.html', dane=dane_do_szablonu, etykiety=etykiety, wartosci=wartosci,
                            scatter_chart_data=scatter_chart_data, # Przekaż przetworzone dane dla wykresu
                            climbing_grades=CLIMBING_GRADES, user_name=user_id) # Przekaż skalę trudności do JS)
+@app.route('/route-tag/<route_id_str>')
+def ascends_by_route_tag(route_id_str):
+
+    tagi, blad = get_unique_tags()
+
+    return render_template('route-tag.html', tagi=tagi)
 
 @app.route('/route/<route_id_str>')
 def ascends_by_route(route_id_str):
@@ -720,6 +783,7 @@ def ascends_by_route(route_id_str):
 
     dynamic_route_id_obj = ObjectId(route_id_str)
     trudnosci_drog, blad = grades_by_route(dynamic_route_id_obj)
+    tagi, blad = get_unique_tags()
 
     etykiety = [item['grade'] for item in trudnosci_drog]
     wartosci = [item['count'] for item in trudnosci_drog]
@@ -792,7 +856,7 @@ def ascends_by_route(route_id_str):
         client.close()
 
     return render_template('route.html', etykiety=etykiety, wartosci=wartosci,
-                           average_review=average_review,
+                           average_review=average_review, tagi=tagi,
                            initial_data=initial_data_for_form,
                            available_grades=available_grades_for_template, error=blad)
 
@@ -905,7 +969,7 @@ def clean_unlinked_routes():
             client.close()
     return deleted_count
 
-@app.route('/clean_routes')
+@app.route('/cleandb')
 def clean_routes_endpoint():
     deleted = clean_unlinked_routes()
     if deleted > -1:
