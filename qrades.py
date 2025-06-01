@@ -316,7 +316,9 @@ def get_all_data():
                         'date': "$route_info.created_at"  # Data utworzenia trasy (z kolekcji routes)
                     }
                 },
-                'Grade': '$most_frequent_grade',  # Najczęściej występująca ocena z wpisów
+                'Setter': { '$toString': '$route_info.setter'},  # Nazwa trasy
+                'Setter Grade': '$route_info.grade',  # Najczęściej występująca ocena z wpisów
+                'User Grade': '$most_frequent_grade',  # Najczęściej występująca ocena z wpisów
                 'Review': {'$round': ['$average_review', 1]},  # Średnia recenzja, zaokrąglona do 1 miejsca po przecinku
                 'Last ascend': {
                     '$dateToString': {
@@ -917,6 +919,10 @@ def add_ascend():
         route_update_data['name'] = name
     if tag:  # Tag może być pusty, ale nadal chcemy go zapisać
         route_update_data['tag'] = tag
+    if user:
+        route_update_data['setter'] = user
+    if grade:
+        route_update_data['grade'] = grade
 
     if route_update_data:
         routes_collection.update_one({"_id": ObjectId(route_id_str)}, {"$set": route_update_data}, upsert=False)

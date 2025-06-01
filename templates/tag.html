@@ -68,7 +68,9 @@
                   'Name': 'Name',
                   'Tag': 'Tag',
                   'Created': 'Created',
-                  'Grade': 'Grade',
+                  'Setter': 'Setter',
+                  'Setter Grade': 'Setter Grade',
+                  'User Grade': 'User Grade',
                   'Review': 'Review',
                   'Last ascend': 'Last ascend'
               };
@@ -77,7 +79,7 @@
               // Pozostawiamy hidden: true, ale głównie polegamy na funkcji hideFirstColumn
               columns.push({ label: 'ID', field: 'full_route_id', hidden: true });
 
-              const desiredOrder = ['Name', 'Tag', 'Created', 'Grade', 'Review', 'Last ascend'];
+              const desiredOrder = ['Name', 'Tag', 'Created', 'Setter', 'Setter Grade', 'User Grade', 'Review', 'Last ascend'];
 
               desiredOrder.forEach(key => {
                   if (rawData[0].hasOwnProperty(key)) {
@@ -139,6 +141,18 @@
                 // Wykonanie funkcji w "następnym cyklu" przeglądarki.
                 setTimeout(hideFirstColumn, 0);
               });
+
+              const dataTableHeader = document.querySelector('#datatable2 .datatable-header');
+              if (dataTableHeader) {
+                  dataTableHeader.addEventListener('click', (e) => {
+                      // Sprawdź, czy kliknięcie nastąpiło na nagłówku kolumny (th)
+                      if (e.target.tagName === 'TH' || e.target.closest('TH')) {
+                          // Ponownie, setTimeout, aby dać czas na przebudowanie DOM po sortowaniu
+                          setTimeout(hideFirstColumn, 0);
+                          console.log("Sortowanie nagłówka wykryte, próba ukrycia kolumny."); // Do celów debugowania
+                      }
+                  });
+              }
               const exportBtn = document.getElementById('export-excel-btn');
                 if (exportBtn) {
                     exportBtn.addEventListener('click', function() {
@@ -147,7 +161,7 @@
                         // Definicja nagłówków dla eksportu.
                         // Ważne: Kolejność tutaj określa kolejność kolumn w Excelu.
                         // Jeśli chcesz 'ID' jako pierwszą kolumnę, umieść ją na początku.
-                        const exportHeaders = ['ID', 'Name', 'Tag', 'Created', 'Grade', 'Review', 'Last ascend']; // Zmienione na 'Last ascend' zamiast 'Date'
+                        const exportHeaders = ['ID', 'Name', 'Tag', 'Created', 'Setter', 'Setter Grade', 'User Grade', 'Review', 'Last ascend']; // Zmienione na 'Last ascend' zamiast 'Date'
 
                         dataToExport.push(exportHeaders);
 
@@ -443,7 +457,7 @@
                         },
                         title: {
                             display: true, // Usunięto tytuł wykresu
-                            text: 'Top 10 - most ascends by user' // Tekst tytułu, ale nie będzie wyświetlany
+                            text: 'Top 10 - most ascends by user and tag' // Tekst tytułu, ale nie będzie wyświetlany
                         }
                     },
                     scales: {

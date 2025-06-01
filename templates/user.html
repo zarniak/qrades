@@ -403,6 +403,18 @@
                 setTimeout(hideFirstColumn, 0);
               });
 
+              const dataTableHeader = document.querySelector('#datatable2 .datatable-header');
+              if (dataTableHeader) {
+                  dataTableHeader.addEventListener('click', (e) => {
+                      // Sprawdź, czy kliknięcie nastąpiło na nagłówku kolumny (th)
+                      if (e.target.tagName === 'TH' || e.target.closest('TH')) {
+                          // Ponownie, setTimeout, aby dać czas na przebudowanie DOM po sortowaniu
+                          setTimeout(hideFirstColumn, 0);
+                          console.log("Sortowanie nagłówka wykryte, próba ukrycia kolumny."); // Do celów debugowania
+                      }
+                  });
+              }
+
                 const exportBtn = document.getElementById('export-excel-btn');
                 if (exportBtn) {
                     exportBtn.addEventListener('click', function() {
