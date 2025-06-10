@@ -56,7 +56,7 @@
                   return;
               }
 
-              const rawData = {{ dane | tojson }};
+              const rawData = {{ dane_drog | tojson }};
 
               if (!rawData || rawData.length === 0) {
                   document.getElementById('datatable2').innerHTML = '<p class="text-center">Brak danych do wyświetlenia.</p>';
@@ -163,6 +163,197 @@
                         // Ważne: Kolejność tutaj określa kolejność kolumn w Excelu.
                         // Jeśli chcesz 'ID' jako pierwszą kolumnę, umieść ją na początku.
                         const exportHeaders = ['ID', 'Name', 'Location', 'Tag', 'Created', 'Setter', 'Setter Grade', 'User Grade', 'Review', 'Last ascend']; // Zmienione na 'Last ascend' zamiast 'Date'
+
+                        dataToExport.push(exportHeaders);
+
+                        // Dodaj wiersze danych (użyj surowych danych `rawData`)
+                        rawData.forEach(item => {
+                            const row = [];
+                            // Iterujemy przez `exportHeaders` aby pobrać dane w ustalonej kolejności
+                            exportHeaders.forEach(headerKey => {
+                                let value;
+                                if (headerKey === 'ID') {
+                                    value = item['full_route_id']; // Pobieramy rzeczywistą wartość ID
+                                } else {
+                                    value = item[headerKey];
+                                }
+
+                                // Specyficzne formatowanie dla Excela (np. liczby)
+                                if (headerKey === 'Review' && typeof value === 'number') {
+                                    value = value.toFixed(1);
+                                }
+
+                                // Obsługa wartości null/undefined
+                                row.push(value === undefined || value === null ? '' : value);
+                            });
+                            dataToExport.push(row);
+                        });
+
+                        const ws = XLSX.utils.aoa_to_sheet(dataToExport);
+                        const wb = XLSX.utils.book_new();
+                        XLSX.utils.book_append_sheet(wb, ws, "Tag data"); // Zmieniona nazwa arkusza na bardziej ogólną
+
+                        XLSX.writeFile(wb, "tag_data.xlsx"); // Zmieniona nazwa pliku na bardziej ogólną
+                    });
+                }
+          });
+        </script>
+
+        <section class="mb-4">
+          <div class="card">
+           <div class="card-body">
+
+              <div data-mdb-input-init class="form-outline mb-4">
+                <input type="text" class="form-control" id="datatable-search-input3" />
+                <label class="form-label" for="datatable-search-input">Search...</label>
+              </div>
+              <div id="datatable3" data-mdb-sm="true">
+              </div>
+              <div class="card-footer text-center">
+                <button id="export-excel-btn3" class="btn btn-success">
+                    <i class="fas fa-file-excel"></i> Excel
+                </button>
+              </div>
+           </div>
+          </div>
+        </section>
+
+        <script type="text/javascript">
+          // Funkcja pomocnicza do ukrywania pierwszej kolumny
+          function hideFirstColumn() {
+              const tableElement = document.getElementById('datatable3').querySelector('table');
+              if (tableElement) {
+                  // Ukryj nagłówek kolumny (pierwszy <th> w <thead>)
+                  const headerCell = tableElement.querySelector('thead th:nth-child(1)');
+                  if (headerCell) {
+                      headerCell.style.display = 'none';
+                  }
+
+                  // Ukryj komórki danych w każdym wierszu (pierwsze <td> w każdym <tr> w <tbody>)
+                  // Używamy querySelectorAll do pobrania wszystkich pasujących komórek
+                  const dataCells = tableElement.querySelectorAll('tbody tr td:nth-child(1)');
+                  dataCells.forEach(cell => {
+                      cell.style.display = 'none';
+                  });
+              }
+          }
+
+
+          document.addEventListener('DOMContentLoaded', function() {
+              if (typeof mdb === 'undefined' || !mdb.Datatable) {
+                  console.error("MDBootstrap Datatable library is not loaded or not accessible.");
+                  document.getElementById('datatable3').innerHTML = '<p class="text-danger">Błąd: Biblioteka tabeli danych nie została załadowana. Spróbuj odświeżyć stronę.</p>';
+                  return;
+              }
+
+              const rawData = {{ dane_przejsc | tojson }};
+
+              if (!rawData || rawData.length === 0) {
+                  document.getElementById('datatable3').innerHTML = '<p class="text-center">Brak danych do wyświetlenia.</p>';
+                  return;
+              }
+
+              const columns = [];
+              const columnLabels = {
+                  'Name': 'Name',
+                  'Location': 'Location',
+                  'Tag': 'Tag',
+                  'Created': 'Created',
+                  'Setter': 'Setter',
+                  'Setter Grade': 'Setter Grade',
+                  'User': 'User',
+                  'User Grade': 'User Grade',
+                  'Review': 'Review',
+                  'Ascend Date': 'Ascend Date'
+              };
+
+              // Dodaj ukrytą kolumnę dla pełnego ID trasy
+              // Pozostawiamy hidden: true, ale głównie polegamy na funkcji hideFirstColumn
+              columns.push({ label: 'ID', field: 'full_route_id', hidden: true });
+
+              const desiredOrder = ['Name', 'Location', 'Tag', 'Created', 'Setter', 'Setter Grade', 'User', 'User Grade', 'Review', 'Ascend Date'];
+
+              desiredOrder.forEach(key => {
+                  if (rawData[0].hasOwnProperty(key)) {
+                      columns.push({
+                          label: columnLabels[key] || key,
+                          field: key
+                      });
+                  }
+              });
+
+              const rows = rawData.map(item => {
+                  const rowData = { ...item };
+
+                  if (item.full_route_id && item.Name) {
+                      rowData.Name = `<a href="../route/${item.full_route_id}" class="text-primary text-decoration-none">${item.Name} <i class="fa-solid fa-arrow-up-right-from-square"></i></a>`;
+                  } else {
+                      rowData.Name = item.Name || 'N/A';
+                  }
+
+                  if (item.Tag) {
+                      rowData.Tag = `<a href="../tag/${item.Tag}" class="text-info text-decoration-none">${item.Tag} <i class="fa-solid fa-arrow-up-right-from-square"></i></a>`;
+                  } else {
+                      rowData.Tag = 'Brak';
+                  }
+
+                  if (typeof rowData.Review === 'number') {
+                      rowData.Review = rowData.Review.toFixed(1);
+                  }
+
+                  return rowData;
+              });
+
+              const tableData = {
+                  columns: columns,
+                  rows: rows,
+              };
+
+              const instance = new mdb.Datatable(document.getElementById('datatable3'), tableData, {
+                  loading: false,
+                  pagination: true,
+                  fixedHeader: true,
+                  hover: true,
+                  striped: false,
+                  bordered: false,
+                  sm: true,
+                  entries: 10,
+                  noRecordsText: 'Brak danych do wyświetlenia.'
+              });
+
+              // --- KLUCZOWE ZMIANY TUTAJ ---
+
+              // 1. Ukryj kolumnę od razu po zainicjalizowaniu tabeli
+              hideFirstColumn();
+
+              // 2. Ukryj kolumnę ponownie po każdej operacji wyszukiwania
+              document.getElementById('datatable-search-input3').addEventListener('input', (e) => {
+                instance.search(e.target.value);
+                // Ważne: Dodajemy setTimeout(..., 0) aby dać MDBootstrap czas na przebudowanie DOM.
+                // Wykonanie funkcji w "następnym cyklu" przeglądarki.
+                setTimeout(hideFirstColumn, 0);
+              });
+
+              const dataTableHeader = document.querySelector('#datatable3 .datatable-header');
+              if (dataTableHeader) {
+                  dataTableHeader.addEventListener('click', (e) => {
+                      // Sprawdź, czy kliknięcie nastąpiło na nagłówku kolumny (th)
+                      if (e.target.tagName === 'TH' || e.target.closest('TH')) {
+                          // Ponownie, setTimeout, aby dać czas na przebudowanie DOM po sortowaniu
+                          setTimeout(hideFirstColumn, 0);
+                          console.log("Sortowanie nagłówka wykryte, próba ukrycia kolumny."); // Do celów debugowania
+                      }
+                  });
+              }
+              const exportBtn = document.getElementById('export-excel-btn3');
+                if (exportBtn) {
+                    exportBtn.addEventListener('click', function() {
+                        const dataToExport = [];
+
+                        // Definicja nagłówków dla eksportu.
+                        // Ważne: Kolejność tutaj określa kolejność kolumn w Excelu.
+                        // Jeśli chcesz 'ID' jako pierwszą kolumnę, umieść ją na początku.
+                        const exportHeaders = ['ID', 'Name', 'Location', 'Tag', 'Created', 'Setter', 'Setter Grade', 'User', 'User Grade', 'Review', 'Ascend Date']; // Zmienione na 'Last ascend' zamiast 'Date'
 
                         dataToExport.push(exportHeaders);
 

@@ -229,7 +229,65 @@ def grades_by_user(user_id):
     ]
     return pobierz_dane_z_mongo(pipeline, "ascends")
 
-def get_all_data():
+def all_ascend_data():
+    pipeline = [
+        # Etap 1: Dołącz informacje o trasie z kolekcji 'routes'
+        # Teraz łączymy każdy wpis 'ascends' z odpowiadającą mu trasą z kolekcji 'routes'
+        # na podstawie pola 'route_id' w kolekcji 'ascends'.
+        {
+            '$lookup': {
+                'from': 'routes',        # Kolekcja, z której dołączamy dane
+                'localField': 'route_id', # Pole z kolekcji 'ascends' (obecna kolekcja)
+                'foreignField': '_id',    # Pole w kolekcji 'routes' (kolekcja do dołączenia)
+                'as': 'route_info'        # Nazwa tablicy, w której znajdą się dołączone dokumenty trasy
+            }
+        },
+        # Etap 2: Rozwiń tablicę 'route_info'
+        # Zakładamy, że dla każdego 'route_id' istnieje dokładnie jeden pasujący dokument w 'routes'.
+        # '$unwind' rozbija tablicę 'route_info' na osobne dokumenty, efektywnie spłaszczając ją.
+        # Jeśli 'route_info' będzie puste (nie znaleziono pasującej trasy), dokument 'ascend' zostanie usunięty.
+        {
+            '$unwind': '$route_info'
+        },
+        # Etap 3: Projektuj (wybierz i zmień nazwy) pola wyjściowe dla każdego wpisu 'ascend'
+        # W tym etapie definiujemy, które pola mają znaleźć się w końcowym wyniku
+        # i jak mają być sformatowane lub nazwane.
+        {
+            '$project': {
+                #'_id': 0, # Opcjonalnie: Usuwa domyślne pole '_id' z wyjścia. Jeśli chcesz zachować ID wpisu 'ascend', ustaw 'ascend_record_id': '$_id'.
+                #'ascend_record_id': '$_id', # ID oryginalnego wpisu z kolekcji 'ascends'
+                'full_route_id': {'$toString': '$route_id'}, # ID trasy, do której odnosi się ten wpis 'ascend'
+                'Name': { '$toString': '$route_info.name'},  # Nazwa trasy z kolekcji 'routes'
+                'Location': {'$toString': '$route_info.location'}, # Lokalizacja trasy z kolekcji 'routes'
+                'Tag': { '$toString': '$route_info.tag'},      # Tag trasy z kolekcji 'routes'
+                'Route Created': { # Data utworzenia trasy, sformatowana
+                    '$dateToString': {
+                        'format': "%Y-%m-%d %H:%M",
+                        'date': "$route_info.created_at" # Data utworzenia trasy (z kolekcji routes)
+                    }
+                },
+                'Setter': { '$toString': '$route_info.setter'}, # Setter trasy z kolekcji 'routes'
+                'Setter Grade': '$route_info.grade',          # Ocena wystawiona przez settra trasy z kolekcji 'routes'
+                'User': '$user',
+                'User Grade': '$grade',                       # Ocena użytkownika z bieżącego wpisu 'ascend'
+                'Review': {'$round': ['$review', 1]},       # Recenzja użytkownika z bieżącego wpisu 'ascend', zaokrąglona
+                'Ascend Date': { # Data wykonania wpisu 'ascend', sformatowana
+                    '$dateToString': {
+                        'format': "%Y-%m-%d %H:%M",
+                        'date': "$created_at" # Data utworzenia bieżącego wpisu 'ascend'
+                    }
+                }
+                # Jeśli potrzebujesz innych pól z oryginalnego wpisu ascend (np. 'user_id', 'notes'), dodaj je tutaj:
+                # 'User ID': '$user_id',
+                # 'Notes': '$notes'
+            }
+        }
+    ]
+
+    # Wywołanie funkcji do pobierania danych z MongoDB, przekazując potok i nazwę kolekcji.
+    return pobierz_dane_z_mongo(pipeline, "ascends")
+
+def all_route_data():
     pipeline = [
         # Etap 1: Grupuj wpisy z 'ascends' po 'route_id'
         # Oblicz średnią recenzję, zbierz wszystkie oceny dla późniejszego wyznaczenia najczęściej występującej
@@ -662,24 +720,44 @@ def index():
 def tag_data(tag_id = None):
 
     if tag_id:
-        all_data, error = get_all_data() # Pobierz wszystkie dane
+        all_data, error = all_route_data() # Pobierz wszystkie dane
 
-        dane_z_bazy = [
+        dane_drog = [
             dokument for dokument in all_data
             if dokument.get('Tag') == tag_id # Upewnij się, że klucz 'tag' istnieje w Twoich dokumentach
         ]
     else:
-        dane_z_bazy, blad = get_all_data()
+        dane_drog, blad = all_route_data()
 
-    dane_do_szablonu = []
-    for dokument in dane_z_bazy:
+    dane_do_szablonu_drog = []
+    for dokument in dane_drog:
         temp_dokument = {}
         for key, value in dokument.items():
             if isinstance(value, ObjectId):
                 temp_dokument[key] = str(value)  # Konwertuj ObjectId na string
             else:
                 temp_dokument[key] = value
-        dane_do_szablonu.append(temp_dokument)
+        dane_do_szablonu_drog.append(temp_dokument)
+
+    if tag_id:
+        all_ascend, error = all_ascend_data() # Pobierz wszystkie dane
+
+        dane_przejsc = [
+            dokument for dokument in all_ascend
+            if dokument.get('Tag') == tag_id # Upewnij się, że klucz 'tag' istnieje w Twoich dokumentach
+        ]
+    else:
+        dane_przejsc, blad = all_ascend_data()
+
+    dane_do_szablonu_przejsc = []
+    for dokument in dane_przejsc:
+        temp_dokument = {}
+        for key, value in dokument.items():
+            if isinstance(value, ObjectId):
+                temp_dokument[key] = str(value)  # Konwertuj ObjectId na string
+            else:
+                temp_dokument[key] = value
+        dane_do_szablonu_przejsc.append(temp_dokument)
 
     if tag_id:
         top_routes_data, error = top_10_routes_by_rating() # Pobierz wszystkie dane
@@ -720,7 +798,8 @@ def tag_data(tag_id = None):
     labels3 = [route.get('user', 'Brak nazwy') for route in top_routes_data3]
     data_values3 = [route.get('ascent_count', 0) for route in top_routes_data3]
 
-    return render_template('tag.html', dane=dane_do_szablonu,
+    return render_template('tag.html',
+                           dane_drog=dane_do_szablonu_drog, dane_przejsc=dane_do_szablonu_przejsc,
                            chart_labels=labels, chart_data=data_values,
                            chart_labels2=labels2, chart_data2=data_values2,
                            chart_labels3=labels3, chart_data3=data_values3)
