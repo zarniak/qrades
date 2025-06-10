@@ -66,6 +66,7 @@
               const columns = [];
               const columnLabels = {
                   'Name': 'Name',
+                  'Location': 'Location',
                   'Tag': 'Tag',
                   'Created': 'Created',
                   'Setter': 'Setter',
@@ -79,7 +80,7 @@
               // Pozostawiamy hidden: true, ale głównie polegamy na funkcji hideFirstColumn
               columns.push({ label: 'ID', field: 'full_route_id', hidden: true });
 
-              const desiredOrder = ['Name', 'Tag', 'Created', 'Setter', 'Setter Grade', 'User Grade', 'Review', 'Last ascend'];
+              const desiredOrder = ['Name', 'Location', 'Tag', 'Created', 'Setter', 'Setter Grade', 'User Grade', 'Review', 'Last ascend'];
 
               desiredOrder.forEach(key => {
                   if (rawData[0].hasOwnProperty(key)) {
@@ -161,7 +162,7 @@
                         // Definicja nagłówków dla eksportu.
                         // Ważne: Kolejność tutaj określa kolejność kolumn w Excelu.
                         // Jeśli chcesz 'ID' jako pierwszą kolumnę, umieść ją na początku.
-                        const exportHeaders = ['ID', 'Name', 'Tag', 'Created', 'Setter', 'Setter Grade', 'User Grade', 'Review', 'Last ascend']; // Zmienione na 'Last ascend' zamiast 'Date'
+                        const exportHeaders = ['ID', 'Name', 'Location', 'Tag', 'Created', 'Setter', 'Setter Grade', 'User Grade', 'Review', 'Last ascend']; // Zmienione na 'Last ascend' zamiast 'Date'
 
                         dataToExport.push(exportHeaders);
 

@@ -309,6 +309,7 @@ def get_all_data():
                 'full_route_id': {'$toString': '$_id'},  # <-- Dodaj to pole
                 #'id': { '$concat': [{'$substrCP': [{'$toString': '$route_info._id'}, 0, 7]}, '...'] },
                 'Name': { '$toString': '$route_info.name'},  # Nazwa trasy
+                'Location': {'$toString': '$route_info.location'},  # Nazwa trasy
                 'Tag': { '$toString': '$route_info.tag'},  # Nazwa trasy
                 'Created': {
                     '$dateToString': {
@@ -835,6 +836,8 @@ def ascends_by_route(route_id_str):
     route_info_doc = routes_collection.find_one({"_id": dynamic_route_id_obj})
     route_name = route_info_doc.get('name', '') if route_info_doc else ''
     route_tag = route_info_doc.get('tag', '') if route_info_doc else ''  # Pobierz tag, domyślnie pusty string
+    route_type = route_info_doc.get('type', '') if route_info_doc else ''  # Pobierz tag, domyślnie pusty string
+    route_location = route_info_doc.get('location', '') if route_info_doc else ''  # Pobierz tag, domyślnie pusty string
 
     # Sprawdź, czy to jest pierwszy wpis dla tej trasy
     existing_ascends_count = ascends_collection.count_documents({"route_id": dynamic_route_id_obj})
@@ -845,7 +848,9 @@ def ascends_by_route(route_id_str):
         'user': user_from_cookie if user_from_cookie else '',  # Pre-fill user if cookie exists
         'is_first_ascent': is_first_ascent_flag,
         'route_name': route_name,  # Przekaż nazwę trasy do formularza
-        'route_tag': route_tag  # Przekaż tag trasy do formularza
+        'route_tag': route_tag,  # Przekaż tag trasy do formularza
+        #'route_type': route_type,
+        'route_location': route_location
     }
 
     initial_data_for_form['user'] = user_from_cookie
