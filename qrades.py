@@ -955,6 +955,7 @@ def add_ascend():
     user = request.form.get('user')
     name = request.form.get('route_name')  # Nowe pole z formularza
     tag = request.form.get('route_tag')  # Nowe pole z formularza
+    location = request.form.get('route_location')
 
     grade = grade.strip() # Usuń białe znaki z początku/końca
     review_int = int(review_str) # Konwersja stringa na liczbę całkowitą
@@ -1003,6 +1004,8 @@ def add_ascend():
         route_update_data['name'] = name
     if tag:  # Tag może być pusty, ale nadal chcemy go zapisać
         route_update_data['tag'] = tag
+    if location:  # Tag może być pusty, ale nadal chcemy go zapisać
+        route_update_data['location'] = location
     if user:
         route_update_data['setter'] = user
     if grade:

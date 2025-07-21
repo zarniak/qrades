@@ -160,6 +160,15 @@
                     </div>
                   </div>
                  </div>
+                 <div class="row g-2">
+                  <div class="col-sm">
+                    <div data-mdb-input-init class="form-outline">
+                        <input type="text" class="form-control" id="route_location" name="route_location"
+                               value="{{ initial_data.route_location if initial_data.route_location is defined else '' }}">
+                        <label for="route_location" class="form-label">Route Location</label>
+                    </div>
+                  </div>
+                 </div>
 
                 {% endif %}
 
