@@ -258,8 +258,8 @@ def all_ascend_data():
                 #'ascend_record_id': '$_id', # ID oryginalnego wpisu z kolekcji 'ascends'
                 'full_route_id': {'$toString': '$route_id'}, # ID trasy, do której odnosi się ten wpis 'ascend'
                 'Name': { '$toString': '$route_info.name'},  # Nazwa trasy z kolekcji 'routes'
-                'Location': {'$toString': '$route_info.location'}, # Lokalizacja trasy z kolekcji 'routes'
-                'Tag': { '$toString': '$route_info.tag'},      # Tag trasy z kolekcji 'routes'
+                #'Location': {'$toString': '$route_info.location'}, # Lokalizacja trasy z kolekcji 'routes'
+                #'Tag': { '$toString': '$route_info.tag'},      # Tag trasy z kolekcji 'routes'
                 'Route Created': { # Data utworzenia trasy, sformatowana
                     '$dateToString': {
                         'format': "%Y-%m-%d %H:%M",
@@ -367,8 +367,8 @@ def all_route_data():
                 'full_route_id': {'$toString': '$_id'},  # <-- Dodaj to pole
                 #'id': { '$concat': [{'$substrCP': [{'$toString': '$route_info._id'}, 0, 7]}, '...'] },
                 'Name': { '$toString': '$route_info.name'},  # Nazwa trasy
-                'Location': {'$toString': '$route_info.location'},  # Nazwa trasy
-                'Tag': { '$toString': '$route_info.tag'},  # Nazwa trasy
+                #'Location': {'$toString': '$route_info.location'},  # Nazwa trasy
+                #'Tag': { '$toString': '$route_info.tag'},  # Nazwa trasy
                 'Created': {
                     '$dateToString': {
                         'format': "%Y-%m-%d %H:%M",  # Format daty, godziny i minuty

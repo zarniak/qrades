@@ -29,9 +29,10 @@
         </section>
 
         <script type="text/javascript">
-          // Funkcja pomocnicza do ukrywania pierwszej kolumny
-          function hideFirstColumn() {
-              const tableElement = document.getElementById('datatable2').querySelector('table');
+          // Funkcja pomocnicza do ukrywania pierwszej kolumny dla DOWOLNEJ tabeli
+          // Zdefiniowana raz, aby uniknąć nadpisywania
+          function hideColumnById(tableId) {
+              const tableElement = document.getElementById(tableId).querySelector('table');
               if (tableElement) {
                   // Ukryj nagłówek kolumny (pierwszy <th> w <thead>)
                   const headerCell = tableElement.querySelector('thead th:nth-child(1)');
@@ -40,7 +41,6 @@
                   }
 
                   // Ukryj komórki danych w każdym wierszu (pierwsze <td> w każdym <tr> w <tbody>)
-                  // Używamy querySelectorAll do pobrania wszystkich pasujących komórek
                   const dataCells = tableElement.querySelectorAll('tbody tr td:nth-child(1)');
                   dataCells.forEach(cell => {
                       cell.style.display = 'none';
@@ -77,10 +77,10 @@
               };
 
               // Dodaj ukrytą kolumnę dla pełnego ID trasy
-              // Pozostawiamy hidden: true, ale głównie polegamy na funkcji hideFirstColumn
+              // Używamy hidden: true, ale funkcja hideColumnById jest jako fallback/uzupełnienie
               columns.push({ label: 'ID', field: 'full_route_id', hidden: true });
 
-              const desiredOrder = ['Name', 'Location', 'Tag', 'Created', 'Setter', 'Setter Grade', 'User Grade', 'Review', 'Last ascend'];
+              const desiredOrder = ['Name', 'Created', 'Setter', 'Setter Grade', 'User Grade', 'Review', 'Last ascend'];
 
               desiredOrder.forEach(key => {
                   if (rawData[0].hasOwnProperty(key)) {
@@ -131,26 +131,22 @@
               });
 
               // --- KLUCZOWE ZMIANY TUTAJ ---
-
               // 1. Ukryj kolumnę od razu po zainicjalizowaniu tabeli
-              hideFirstColumn();
+              hideColumnById('datatable2'); // Wywołaj funkcję dla konkretnej tabeli
 
               // 2. Ukryj kolumnę ponownie po każdej operacji wyszukiwania
               document.getElementById('datatable-search-input').addEventListener('input', (e) => {
                 instance.search(e.target.value);
                 // Ważne: Dodajemy setTimeout(..., 0) aby dać MDBootstrap czas na przebudowanie DOM.
-                // Wykonanie funkcji w "następnym cyklu" przeglądarki.
-                setTimeout(hideFirstColumn, 0);
+                setTimeout(() => hideColumnById('datatable2'), 0);
               });
 
               const dataTableHeader = document.querySelector('#datatable2 .datatable-header');
               if (dataTableHeader) {
                   dataTableHeader.addEventListener('click', (e) => {
-                      // Sprawdź, czy kliknięcie nastąpiło na nagłówku kolumny (th)
                       if (e.target.tagName === 'TH' || e.target.closest('TH')) {
-                          // Ponownie, setTimeout, aby dać czas na przebudowanie DOM po sortowaniu
-                          setTimeout(hideFirstColumn, 0);
-                          console.log("Sortowanie nagłówka wykryte, próba ukrycia kolumny."); // Do celów debugowania
+                          setTimeout(() => hideColumnById('datatable2'), 0);
+                          console.log("Sortowanie nagłówka wykryte, próba ukrycia kolumny.");
                       }
                   });
               }
@@ -159,31 +155,24 @@
                     exportBtn.addEventListener('click', function() {
                         const dataToExport = [];
 
-                        // Definicja nagłówków dla eksportu.
-                        // Ważne: Kolejność tutaj określa kolejność kolumn w Excelu.
-                        // Jeśli chcesz 'ID' jako pierwszą kolumnę, umieść ją na początku.
-                        const exportHeaders = ['ID', 'Name', 'Location', 'Tag', 'Created', 'Setter', 'Setter Grade', 'User Grade', 'Review', 'Last ascend']; // Zmienione na 'Last ascend' zamiast 'Date'
+                        const exportHeaders = ['ID', 'Name', 'Created', 'Setter', 'Setter Grade', 'User Grade', 'Review', 'Last ascend'];
 
                         dataToExport.push(exportHeaders);
 
-                        // Dodaj wiersze danych (użyj surowych danych `rawData`)
                         rawData.forEach(item => {
                             const row = [];
-                            // Iterujemy przez `exportHeaders` aby pobrać dane w ustalonej kolejności
                             exportHeaders.forEach(headerKey => {
                                 let value;
                                 if (headerKey === 'ID') {
-                                    value = item['full_route_id']; // Pobieramy rzeczywistą wartość ID
+                                    value = item['full_route_id'];
                                 } else {
                                     value = item[headerKey];
                                 }
 
-                                // Specyficzne formatowanie dla Excela (np. liczby)
                                 if (headerKey === 'Review' && typeof value === 'number') {
                                     value = value.toFixed(1);
                                 }
 
-                                // Obsługa wartości null/undefined
                                 row.push(value === undefined || value === null ? '' : value);
                             });
                             dataToExport.push(row);
@@ -191,9 +180,9 @@
 
                         const ws = XLSX.utils.aoa_to_sheet(dataToExport);
                         const wb = XLSX.utils.book_new();
-                        XLSX.utils.book_append_sheet(wb, ws, "Tag data"); // Zmieniona nazwa arkusza na bardziej ogólną
+                        XLSX.utils.book_append_sheet(wb, ws, "Tag data");
 
-                        XLSX.writeFile(wb, "tag_data.xlsx"); // Zmieniona nazwa pliku na bardziej ogólną
+                        XLSX.writeFile(wb, "tag_data.xlsx");
                     });
                 }
           });
@@ -219,24 +208,8 @@
         </section>
 
         <script type="text/javascript">
-          // Funkcja pomocnicza do ukrywania pierwszej kolumny
-          function hideFirstColumn() {
-              const tableElement = document.getElementById('datatable3').querySelector('table');
-              if (tableElement) {
-                  // Ukryj nagłówek kolumny (pierwszy <th> w <thead>)
-                  const headerCell = tableElement.querySelector('thead th:nth-child(1)');
-                  if (headerCell) {
-                      headerCell.style.display = 'none';
-                  }
-
-                  // Ukryj komórki danych w każdym wierszu (pierwsze <td> w każdym <tr> w <tbody>)
-                  // Używamy querySelectorAll do pobrania wszystkich pasujących komórek
-                  const dataCells = tableElement.querySelectorAll('tbody tr td:nth-child(1)');
-                  dataCells.forEach(cell => {
-                      cell.style.display = 'none';
-                  });
-              }
-          }
+          // Funkcja hideColumnById jest już zdefiniowana globalnie, więc nie definiujemy jej ponownie tutaj.
+          // function hideColumnById(tableId) { ... } // USUNIĘTO POWTÓRNĄ DEFINICJĘ
 
 
           document.addEventListener('DOMContentLoaded', function() {
@@ -268,10 +241,9 @@
               };
 
               // Dodaj ukrytą kolumnę dla pełnego ID trasy
-              // Pozostawiamy hidden: true, ale głównie polegamy na funkcji hideFirstColumn
               columns.push({ label: 'ID', field: 'full_route_id', hidden: true });
 
-              const desiredOrder = ['Name', 'Location', 'Tag', 'Created', 'Setter', 'Setter Grade', 'User', 'User Grade', 'Review', 'Ascend Date'];
+              const desiredOrder = ['Name', 'Created', 'Setter', 'Setter Grade', 'User', 'User Grade', 'Review', 'Ascend Date'];
 
               desiredOrder.forEach(key => {
                   if (rawData[0].hasOwnProperty(key)) {
@@ -322,26 +294,21 @@
               });
 
               // --- KLUCZOWE ZMIANY TUTAJ ---
-
               // 1. Ukryj kolumnę od razu po zainicjalizowaniu tabeli
-              hideFirstColumn();
+              hideColumnById('datatable3'); // Wywołaj funkcję dla konkretnej tabeli
 
               // 2. Ukryj kolumnę ponownie po każdej operacji wyszukiwania
               document.getElementById('datatable-search-input3').addEventListener('input', (e) => {
                 instance.search(e.target.value);
-                // Ważne: Dodajemy setTimeout(..., 0) aby dać MDBootstrap czas na przebudowanie DOM.
-                // Wykonanie funkcji w "następnym cyklu" przeglądarki.
-                setTimeout(hideFirstColumn, 0);
+                setTimeout(() => hideColumnById('datatable3'), 0);
               });
 
               const dataTableHeader = document.querySelector('#datatable3 .datatable-header');
               if (dataTableHeader) {
                   dataTableHeader.addEventListener('click', (e) => {
-                      // Sprawdź, czy kliknięcie nastąpiło na nagłówku kolumny (th)
                       if (e.target.tagName === 'TH' || e.target.closest('TH')) {
-                          // Ponownie, setTimeout, aby dać czas na przebudowanie DOM po sortowaniu
-                          setTimeout(hideFirstColumn, 0);
-                          console.log("Sortowanie nagłówka wykryte, próba ukrycia kolumny."); // Do celów debugowania
+                          setTimeout(() => hideColumnById('datatable3'), 0);
+                          console.log("Sortowanie nagłówka wykryte, próba ukrycia kolumny.");
                       }
                   });
               }
@@ -350,31 +317,24 @@
                     exportBtn.addEventListener('click', function() {
                         const dataToExport = [];
 
-                        // Definicja nagłówków dla eksportu.
-                        // Ważne: Kolejność tutaj określa kolejność kolumn w Excelu.
-                        // Jeśli chcesz 'ID' jako pierwszą kolumnę, umieść ją na początku.
-                        const exportHeaders = ['ID', 'Name', 'Location', 'Tag', 'Created', 'Setter', 'Setter Grade', 'User', 'User Grade', 'Review', 'Ascend Date']; // Zmienione na 'Last ascend' zamiast 'Date'
+                        const exportHeaders = ['ID', 'Name', 'Created', 'Setter', 'Setter Grade', 'User', 'User Grade', 'Review', 'Ascend Date'];
 
                         dataToExport.push(exportHeaders);
 
-                        // Dodaj wiersze danych (użyj surowych danych `rawData`)
                         rawData.forEach(item => {
                             const row = [];
-                            // Iterujemy przez `exportHeaders` aby pobrać dane w ustalonej kolejności
                             exportHeaders.forEach(headerKey => {
                                 let value;
                                 if (headerKey === 'ID') {
-                                    value = item['full_route_id']; // Pobieramy rzeczywistą wartość ID
+                                    value = item['full_route_id'];
                                 } else {
                                     value = item[headerKey];
                                 }
 
-                                // Specyficzne formatowanie dla Excela (np. liczby)
                                 if (headerKey === 'Review' && typeof value === 'number') {
                                     value = value.toFixed(1);
                                 }
 
-                                // Obsługa wartości null/undefined
                                 row.push(value === undefined || value === null ? '' : value);
                             });
                             dataToExport.push(row);
@@ -382,9 +342,9 @@
 
                         const ws = XLSX.utils.aoa_to_sheet(dataToExport);
                         const wb = XLSX.utils.book_new();
-                        XLSX.utils.book_append_sheet(wb, ws, "Tag data"); // Zmieniona nazwa arkusza na bardziej ogólną
+                        XLSX.utils.book_append_sheet(wb, ws, "Tag data");
 
-                        XLSX.writeFile(wb, "tag_data.xlsx"); // Zmieniona nazwa pliku na bardziej ogólną
+                        XLSX.writeFile(wb, "tag_data.xlsx");
                     });
                 }
           });
@@ -713,8 +673,4 @@
          </div>
         </div>
       </section>
-
-    {% endblock %}
-
-{# Nie definiujemy innych bloków (head_extra, scripts_extra), jeśli nie są potrzebne #}
-
+{% endblock %}
