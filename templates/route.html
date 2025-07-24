@@ -172,6 +172,13 @@
 
                 {% endif %}
 
+                <style>
+                  /* Dodaj ten styl do sekcji <head> lub w osobnym pliku CSS */
+                  .lowercase-label {
+                    text-transform: lowercase !important; /* Użyj !important, aby nadpisać domyślne style Bootstrap/MDBootstrap */
+                  }
+                </style>
+
                 <div class="row g-2">
                   <div class="col-sm d-flex flex-wrap justify-content-center">
                       <div class="btn-group btn-group-sm d-flex flex-wrap">
@@ -182,7 +189,7 @@
                                        {% if initial_data.grade is defined and initial_data.grade is not none and initial_data.grade == i %}checked{% endif %} {# Zaznacz, jeśli wartość w initial_data pasuje do tej opcji #}
                                        {% if loop.first %}required{% endif %}> {# Oznacz pierwszy radio button jako wymagany (wymusza wybór z grupy) #}
                                     {# Etykieta dla danego radio buttona #}
-                                    <label class="btn btn-secondary" for="grade_{{ i }}">{{ i }}</label>
+                                    <label class="btn btn-secondary lowercase-label" for="grade_{{ i }}">{{ i }}</label>
                             {% if not loop.last %} &nbsp; {% endif %}
                         {% endfor %}
                     </div>

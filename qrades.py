@@ -22,7 +22,7 @@ app = Flask(__name__) # Inicjalizacja aplikacji Flask
 app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY', 'fallback_secret_key') # Fallback na wypadek braku w .env
 
 # --- Pełna skala trudności wspinaczkowej (globalna stała) ---
-CLIMBING_GRADES = ['4a', '4b', '4c', '5a', '5b', '5c', '6a', '6b', '6c', '7a', '7b', '7c']
+CLIMBING_GRADES = ['4a', '4b', '4c', '5a', '5b', '5c', '5c+', '6a', '6a+', '6b', '6b+', '6c', '6c+', '7a', '7a+', '7b', '7b+', '7c']
 
 def grades_by_route(dynamic_route_id_obj):
     pipeline = [
