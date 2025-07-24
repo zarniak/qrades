@@ -899,8 +899,8 @@ def ascends_by_route(route_id_str):
             first_grade_index = CLIMBING_GRADES.index(first_grade)
 
             # Oblicz granice dla +/- 2 stopni
-            min_index = max(0, first_grade_index - 2)
-            max_index = min(len(CLIMBING_GRADES) - 1, first_grade_index + 2)
+            min_index = max(0, first_grade_index - 3)
+            max_index = min(len(CLIMBING_GRADES) - 1, first_grade_index + 3)
 
             available_grades_for_template = CLIMBING_GRADES[min_index: max_index + 1]
 
