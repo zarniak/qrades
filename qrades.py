@@ -1026,15 +1026,22 @@ def add_ascend():
 
     routes_collection = db["routes"]  # Dostęp do kolekcji routes
 
-    # Jeśli to pierwszy wpis dla tej trasy (na podstawie flagi z formularza)
+    # --- Logika aktualizacji kolekcji 'routes' ---
     route_update_data = {}
+    route_id_obj = ObjectId(route_id_str)
+
+    # Pobierz aktualny dokument trasy, aby sprawdzić stan pola 'setter'
+    current_route_doc = routes_collection.find_one({"_id": route_id_obj})
+
+    # Jeśli to pierwszy wpis dla tej trasy (na podstawie flagi z formularza)
     if name:
         route_update_data['name'] = name
     if tag:  # Tag może być pusty, ale nadal chcemy go zapisać
         route_update_data['tag'] = tag
     if location:  # Tag może być pusty, ale nadal chcemy go zapisać
         route_update_data['location'] = location
-    if user:
+    # Ustaw 'setter' tylko jeśli go brakuje lub jest pusty
+    if user and (not current_route_doc or not current_route_doc.get('setter')):
         route_update_data['setter'] = user
     if grade:
         route_update_data['grade'] = grade
