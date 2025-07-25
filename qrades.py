@@ -1,3 +1,4 @@
+import pytz
 from flask import Flask, render_template, Response, request, redirect, url_for, make_response, send_file, flash
 from pymongo import MongoClient
 from pymongo.errors import ConnectionFailure
@@ -7,6 +8,7 @@ from io import BytesIO
 import os
 import qrcode
 from openpyxl import Workbook
+import pytz
 import datetime # Do ustawienia daty ważności cookie
 
 base_url = "https://qrades.com/"
@@ -22,7 +24,7 @@ app = Flask(__name__) # Inicjalizacja aplikacji Flask
 app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY', 'fallback_secret_key') # Fallback na wypadek braku w .env
 
 # --- Pełna skala trudności wspinaczkowej (globalna stała) ---
-CLIMBING_GRADES = ['4a', '4b', '4c', '5a', '5b', '5c', '5c+', '6a', '6a+', '6b', '6b+', '6c', '6c+', '7a', '7a+', '7b', '7b+', '7c']
+CLIMBING_GRADES = ['4a', '4a+', '4b', '4b+', '4c', '4c+', '5a', '5a+', '5b', '5b+', '5c', '5c+', '6a', '6a+', '6b', '6b+', '6c', '6c+', '7a', '7a+', '7b', '7b+', '7c']
 
 def grades_by_route(dynamic_route_id_obj):
     pipeline = [
@@ -263,7 +265,8 @@ def all_ascend_data():
                 'Route Created': { # Data utworzenia trasy, sformatowana
                     '$dateToString': {
                         'format': "%Y-%m-%d %H:%M",
-                        'date': "$route_info.created_at" # Data utworzenia trasy (z kolekcji routes)
+                        'date': "$route_info.created_at",
+                        'timezone': "Europe/Warsaw" # Data utworzenia trasy (z kolekcji routes)
                     }
                 },
                 'Setter': { '$toString': '$route_info.setter'}, # Setter trasy z kolekcji 'routes'
@@ -274,7 +277,8 @@ def all_ascend_data():
                 'Ascend Date': { # Data wykonania wpisu 'ascend', sformatowana
                     '$dateToString': {
                         'format': "%Y-%m-%d %H:%M",
-                        'date': "$created_at" # Data utworzenia bieżącego wpisu 'ascend'
+                        'date': "$created_at",
+                        'timezone': "Europe/Warsaw"# Data utworzenia bieżącego wpisu 'ascend'
                     }
                 }
                 # Jeśli potrzebujesz innych pól z oryginalnego wpisu ascend (np. 'user_id', 'notes'), dodaj je tutaj:
@@ -372,7 +376,8 @@ def all_route_data():
                 'Created': {
                     '$dateToString': {
                         'format': "%Y-%m-%d %H:%M",  # Format daty, godziny i minuty
-                        'date': "$route_info.created_at"  # Data utworzenia trasy (z kolekcji routes)
+                        'date': "$route_info.created_at",
+                        'timezone': "Europe/Warsaw"# Data utworzenia trasy (z kolekcji routes)
                     }
                 },
                 'Setter': { '$toString': '$route_info.setter'},  # Nazwa trasy
@@ -382,7 +387,8 @@ def all_route_data():
                 'Last ascend': {
                     '$dateToString': {
                         'format': "%Y-%m-%d %H:%M",  # Format daty, godziny i minuty
-                        'date': "$latest_ascend_date"  # Najnowsza data wpisu (z kolekcji ascends)
+                        'date': "$latest_ascend_date",
+                        'timezone': "Europe/Warsaw"# Najnowsza data wpisu (z kolekcji ascends)
                     }
                 }
             }
@@ -625,9 +631,22 @@ def pobierz_dane_z_mongo(pipeline, kolekcja):
 
 def add_multiple_routes():
 
+    # Definiowanie strefy czasowej dla Warszawy
+    # Strefa czasowa dla Polski to 'Europe/Warsaw'
+    warsaw_timezone = pytz.timezone('Europe/Warsaw')
+
+    # Pobranie aktualnego czasu w strefie czasowej Warszawy
+    # Używamy .now(warsaw_timezone) aby od razu uzyskać obiekt świadomy strefy czasowej
+    current_time_warsaw = datetime.datetime.now(warsaw_timezone)
+
+    # Aby zapisać to w MongoDB, najlepiej jest najpierw przekonwertować to na UTC
+    # MongoDB przechowuje daty w UTC, więc zawsze najlepiej jest konwertować przed zapisem.
+    current_time_utc = current_time_warsaw.astimezone(pytz.utc)
+
     new_route_document = {
         #"name": f"Route from {datetime.datetime.now().strftime('%Y%m%d%H%M%S')}",  # Dodaj unikalną nazwę
-        "created_at": datetime.datetime.now()  # Dodaj aktualną datę i czas
+        #"created_at": datetime.datetime.now()  # Dodaj aktualną datę i czas
+        "created_at": current_time_utc # Dodaj aktualną datę i czas
     }
 
     client = MongoClient(CONNECTION_STRING, serverSelectionTimeoutMS=5000)  # Timeout po 5s
@@ -828,9 +847,6 @@ def ascends_by_user(user_id = None):
 
     scatter_data_raw, scatter_error = all_ascends_by_user_for_scatter(user_id)
 
-    # Definicja skali trudności (musi być zgodna z JS)
-    # climbing_grades = ['5a', '5b', '5c', '6a', '6b', '6c', '7a', '7b', '7c']
-
     scatter_chart_data = []
     if not scatter_error and scatter_data_raw:
         for ascend in scatter_data_raw:
@@ -967,12 +983,24 @@ def add_ascend():
         "route_id": ObjectId(route_id_str)
     }
 
+    # Definiowanie strefy czasowej dla Warszawy
+    # Strefa czasowa dla Polski to 'Europe/Warsaw'
+    warsaw_timezone = pytz.timezone('Europe/Warsaw')
+
+    # Pobranie aktualnego czasu w strefie czasowej Warszawy
+    # Używamy .now(warsaw_timezone) aby od razu uzyskać obiekt świadomy strefy czasowej
+    current_time_warsaw = datetime.datetime.now(warsaw_timezone)
+
+    # Aby zapisać to w MongoDB, najlepiej jest najpierw przekonwertować to na UTC
+    # MongoDB przechowuje daty w UTC, więc zawsze najlepiej jest konwertować przed zapisem.
+    current_time_utc = current_time_warsaw.astimezone(pytz.utc)
+
     new_ascend_document = {
         "route_id": ObjectId(route_id_str),
         "grade": grade,
         "review": review_int,     # Użyj skonwertowanej liczby całkowitej
         "user": user,
-        "created_at": datetime.datetime.now()  # Dodaj aktualną datę i czas
+        "created_at": current_time_utc # Dodaj aktualną datę i czas
         # _id zostanie automatycznie dodane przez MongoDB
     }
 
@@ -988,7 +1016,7 @@ def add_ascend():
     update_data = {
         "grade": grade,
         "review": review_int,
-        "created_at": datetime.datetime.now()
+        "created_at": current_time_utc
     }
 
     if existing_document:
