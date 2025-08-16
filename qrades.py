@@ -251,6 +251,13 @@ def all_ascend_data():
         {
             '$unwind': '$route_info'
         },
+        {
+            '$match': {
+                '$expr': {
+                    '$ne': ['$route_info.setter', '$user'] # '$ne' to operator "nie równa się"
+                }
+            }
+        },
         # Etap 3: Projektuj (wybierz i zmień nazwy) pola wyjściowe dla każdego wpisu 'ascend'
         # W tym etapie definiujemy, które pola mają znaleźć się w końcowym wyniku
         # i jak mają być sformatowane lub nazwane.
@@ -285,6 +292,13 @@ def all_ascend_data():
                 # 'User ID': '$user_id',
                 # 'Notes': '$notes'
             }
+        },
+        # DODANO: Sortowanie wyników po 'Ascend Date' w kolejności malejącej (najnowsze na górze)
+        {
+            '$sort': {
+                'Ascend Date': -1  # -1 dla kolejności malejącej (od najnowszej)
+                # 1 dla kolejności rosnącej (od najstarszej)
+            }
         }
     ]
 
@@ -301,7 +315,8 @@ def all_route_data():
                 '_id': '$route_id',
                 'average_review': { '$avg': '$review' },
                 'grades_for_mode': { '$push': '$grade' },
-                'latest_ascend_date': { '$max': '$created_at' } # DODANO: Najnowsza data z ascends
+                'latest_ascend_date': { '$max': '$created_at' }, # DODANO: Najnowsza data z ascends
+                'total_ascends': {'$sum': 1}  # DODANO: Licznik wszystkich przejść dla trasy
             }
         },
         # Etap 2: Dołącz informacje o trasie z kolekcji 'routes'
@@ -316,6 +331,13 @@ def all_route_data():
         # Etap 3: Rozwiń tablicę 'route_info' (zakładamy, że każdy route_id pasuje do jednej trasy)
         {
             '$unwind': '$route_info'
+        },
+        {
+            '$match': {
+                '$expr': {
+                    '$ne': ['$route_info.setter', '$user']  # '$ne' to operator "nie równa się"
+                }
+            }
         },
         # Etap 4: Oblicz najczęściej występującą ocenę
         # Tworzy mapę częstotliwości ocen dla każdej trasy
@@ -365,7 +387,6 @@ def all_route_data():
                 }
             }
         },
-
         {
             '$project': {
                 'full_route_id': {'$toString': '$_id'},  # <-- Dodaj to pole
@@ -384,6 +405,7 @@ def all_route_data():
                 'Setter Grade': '$route_info.grade',  # Najczęściej występująca ocena z wpisów
                 'User Grade': '$most_frequent_grade',  # Najczęściej występująca ocena z wpisów
                 'Review': {'$round': ['$average_review', 1]},  # Średnia recenzja, zaokrąglona do 1 miejsca po przecinku
+                'Total Ascends': '$total_ascends', # DODANO: Pole z liczbą wszystkich przejść
                 'Last ascend': {
                     '$dateToString': {
                         'format': "%Y-%m-%d %H:%M",  # Format daty, godziny i minuty
@@ -391,6 +413,13 @@ def all_route_data():
                         'timezone': "Europe/Warsaw"# Najnowsza data wpisu (z kolekcji ascends)
                     }
                 }
+            }
+        },
+        # DODANO: Sortowanie wyników po 'Ascend Date' w kolejności malejącej (najnowsze na górze)
+        {
+            '$sort': {
+                'Last ascend': -1  # -1 dla kolejności malejącej (od najnowszej)
+                # 1 dla kolejności rosnącej (od najstarszej)
             }
         }
     ]
@@ -458,9 +487,17 @@ def top_10_routes_by_rating():
     pipeline = [
         {
             # Zgrupuj przejścia po route_id i oblicz średnią ocenę (review)
+            # DODANO: 'review_count' do liczenia recenzji
             '$group': {
                 '_id': '$route_id',
-                'average_review': { '$avg': '$review' }
+                'average_review': { '$avg': '$review' },
+                'review_count': { '$sum': 1 } # Liczy liczbę dokumentów w grupie
+            }
+        },
+        {
+            # DODANO: Etap filtrowania: pokaż tylko drogi z co najmniej 2 recenzjami
+            '$match': {
+                'review_count': { '$gte': 2 } # '$gte' oznacza "większe lub równe"
             }
         },
         {
@@ -493,12 +530,14 @@ def top_10_routes_by_rating():
                 'route_id': '$_id',
                 'route_name': '$route_info.name',
                 'tag': '$route_info.tag',
-                'average_review': { '$round': ['$average_review', 2] } # Zaokrąglij do 2 miejsc po przecinku
+                'average_review': { '$round': ['$average_review', 2] }, # Zaokrąglij do 2 miejsc po przecinku
+                'review_count': '$review_count' # Opcjonalnie: dodaj licznik recenzji do wyników
             }
         }
     ]
     # Użyj istniejącej funkcji do pobierania danych
-    return pobierz_dane_z_mongo(pipeline, NAZWA_KOLEKCJI)
+    # Pamiętaj, aby przekazać nazwę kolekcji, na której operujemy, czyli "ascends"
+    return pobierz_dane_z_mongo(pipeline, "ascends")
 
 def top_10_routes_by_ascends():
     pipeline = [

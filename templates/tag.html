@@ -12,7 +12,7 @@
         <section class="mb-4">
           <div class="card">
            <div class="card-body">
-            <h5 class="mb-3 text-center"><strong>route data</strong></h5>
+            <h5 class="mb-3 text-center"><strong>routes</strong></h5>
               <div data-mdb-input-init class="form-outline mb-4">
                 <input type="text" class="form-control" id="datatable-search-input" />
                 <label class="form-label" for="datatable-search-input">Search...</label>
@@ -72,6 +72,7 @@
                   'Setter': 'Setter',
                   'Setter Grade': 'Setter Grade',
                   'User Grade': 'User Grade',
+                  'Total Ascends': 'Total Ascends',
                   'Review': 'Review',
                   'Last ascend': 'Last ascend'
               };
@@ -80,7 +81,7 @@
               // Używamy hidden: true, ale funkcja hideColumnById jest jako fallback/uzupełnienie
               columns.push({ label: 'ID', field: 'full_route_id', hidden: true });
 
-              const desiredOrder = ['Name', 'Created', 'Setter', 'Setter Grade', 'User Grade', 'Review', 'Last ascend'];
+              const desiredOrder = ['Name', 'Created', 'Setter', 'Setter Grade', 'User Grade', 'Total Ascends', 'Review', 'Last ascend'];
 
               desiredOrder.forEach(key => {
                   if (rawData[0].hasOwnProperty(key)) {
@@ -118,7 +119,7 @@
                   rows: rows,
               };
 
-              const instance = new mdb.Datatable(document.getElementById('datatable2'), tableData, {
+              const instance2 = new mdb.Datatable(document.getElementById('datatable2'), tableData, {
                   loading: false,
                   pagination: true,
                   fixedHeader: true,
@@ -136,7 +137,7 @@
 
               // 2. Ukryj kolumnę ponownie po każdej operacji wyszukiwania
               document.getElementById('datatable-search-input').addEventListener('input', (e) => {
-                instance.search(e.target.value);
+                instance2.search(e.target.value);
                 // Ważne: Dodajemy setTimeout(..., 0) aby dać MDBootstrap czas na przebudowanie DOM.
                 setTimeout(() => hideColumnById('datatable2'), 0);
               });
@@ -150,12 +151,33 @@
                       }
                   });
               }
+
+              // NOWE: Ukryj kolumnę po zmianie strony paginacji
+              const datatable2Pagination = document.querySelector('#datatable2 .datatable-pagination');
+              if (datatable2Pagination) {
+                  datatable2Pagination.addEventListener('click', (e) => {
+                      if (e.target.closest('.page-item')) { // Kliknięcie na element strony (przycisk)
+                          setTimeout(() => hideColumnById('datatable2'), 0);
+                          console.log("Paginacja datatable2 zmieniona, próba ukrycia kolumny.");
+                      }
+                  });
+              }
+
+              // NOWE: Ukryj kolumnę po zmianie liczby wpisów na stronę
+              const datatable2EntriesSelect = document.querySelector('#datatable2 .datatable-select select');
+              if (datatable2EntriesSelect) {
+                  datatable2EntriesSelect.addEventListener('change', () => {
+                      setTimeout(() => hideColumnById('datatable2'), 0);
+                      console.log("Entries datatable2 zmienione, próba ukrycia kolumny.");
+                  });
+              }
+
               const exportBtn = document.getElementById('export-excel-btn');
                 if (exportBtn) {
                     exportBtn.addEventListener('click', function() {
                         const dataToExport = [];
 
-                        const exportHeaders = ['ID', 'Name', 'Created', 'Setter', 'Setter Grade', 'User Grade', 'Review', 'Last ascend'];
+                        const exportHeaders = ['ID', 'Name', 'Created', 'Setter', 'Setter Grade', 'User Grade', 'Total Ascends', 'Review', 'Last ascend'];
 
                         dataToExport.push(exportHeaders);
 
@@ -191,7 +213,7 @@
         <section class="mb-4">
           <div class="card">
            <div class="card-body">
-            <h5 class="mb-3 text-center"><strong>ascends data</strong></h5>
+            <h5 class="mb-3 text-center"><strong>ascends</strong></h5>
               <div data-mdb-input-init class="form-outline mb-4">
                 <input type="text" class="form-control" id="datatable-search-input3" />
                 <label class="form-label" for="datatable-search-input">Search...</label>
@@ -211,6 +233,19 @@
           // Funkcja hideColumnById jest już zdefiniowana globalnie, więc nie definiujemy jej ponownie tutaj.
           // function hideColumnById(tableId) { ... } // USUNIĘTO POWTÓRNĄ DEFINICJĘ
 
+          // NOWE: Dodano globalne style CSS do ukrycia pierwszej kolumny (ID)
+          // To jest najbardziej niezawodny sposób na utrzymanie kolumny ukrytej
+          // niezależnie od dynamicznego renderowania przez bibliotekę MDBootstrap.
+          const style = document.createElement('style');
+          style.innerHTML = `
+            #datatable2 table th:nth-child(1),
+            #datatable2 table td:nth-child(1),
+            #datatable3 table th:nth-child(1),
+            #datatable3 table td:nth-child(1) {
+                display: none !important;
+            }
+          `;
+          document.head.appendChild(style);
 
           document.addEventListener('DOMContentLoaded', function() {
               if (typeof mdb === 'undefined' || !mdb.Datatable) {
@@ -281,7 +316,7 @@
                   rows: rows,
               };
 
-              const instance = new mdb.Datatable(document.getElementById('datatable3'), tableData, {
+              const instance3 = new mdb.Datatable(document.getElementById('datatable3'), tableData, {
                   loading: false,
                   pagination: true,
                   fixedHeader: true,
@@ -299,7 +334,7 @@
 
               // 2. Ukryj kolumnę ponownie po każdej operacji wyszukiwania
               document.getElementById('datatable-search-input3').addEventListener('input', (e) => {
-                instance.search(e.target.value);
+                instance3.search(e.target.value);
                 setTimeout(() => hideColumnById('datatable3'), 0);
               });
 
@@ -312,6 +347,27 @@
                       }
                   });
               }
+
+              // NOWE: Ukryj kolumnę po zmianie strony paginacji
+              const datatable2Pagination = document.querySelector('#datatable3 .datatable-pagination');
+              if (datatable2Pagination) {
+                  datatable2Pagination.addEventListener('click', (e) => {
+                      if (e.target.closest('.page-item')) { // Kliknięcie na element strony (przycisk)
+                          setTimeout(() => hideColumnById('datatable3'), 0);
+                          console.log("Paginacja datatable3 zmieniona, próba ukrycia kolumny.");
+                      }
+                  });
+              }
+
+              // NOWE: Ukryj kolumnę po zmianie liczby wpisów na stronę
+              const datatable2EntriesSelect = document.querySelector('#datatable3 .datatable-select select');
+              if (datatable2EntriesSelect) {
+                  datatable2EntriesSelect.addEventListener('change', () => {
+                      setTimeout(() => hideColumnById('datatable3'), 0);
+                      console.log("Entries datatable2 zmienione, próba ukrycia kolumny.");
+                  });
+              }
+
               const exportBtn = document.getElementById('export-excel-btn3');
                 if (exportBtn) {
                     exportBtn.addEventListener('click', function() {
