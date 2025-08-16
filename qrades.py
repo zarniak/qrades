@@ -182,7 +182,7 @@ def all_ascends_by_user(user_id):
         },
         {
             '$sort': {
-                'created_at': 1 # Sortuj chronologicznie dla wykresu
+                'Date': -1 # Sortuj chronologicznie dla wykresu
             }
         }
     ]

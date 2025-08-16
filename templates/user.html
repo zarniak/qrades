@@ -296,6 +296,18 @@
         </section>
 
         <script type="text/javascript">
+          // NOWE: Dodano globalne style CSS do ukrycia pierwszej kolumny (ID)
+          // To jest najbardziej niezawodny sposób na utrzymanie kolumny ukrytej
+          // niezależnie od dynamicznego renderowania przez bibliotekę MDBootstrap.
+          const style = document.createElement('style');
+          style.innerHTML = `
+            #datatable2 table th:nth-child(1),
+            #datatable2 table td:nth-child(1) {
+                display: none !important;
+            }
+          `;
+          document.head.appendChild(style);
+
           // Funkcja pomocnicza do ukrywania pierwszej kolumny
           function hideFirstColumn() {
               const tableElement = document.getElementById('datatable2').querySelector('table');
