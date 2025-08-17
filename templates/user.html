@@ -305,6 +305,13 @@
             #datatable2 table td:nth-child(1) {
                 display: none !important;
             }
+          /* Style dla zmniejszenia czcionki i odstępów */
+            #datatable2 table {
+                font-size: 0.85em !important; /* Zmniejsz czcionkę dla całej tabeli */
+            }
+            #datatable2 table th, #datatable2 table td {
+                padding: 0.3rem !important; /* Zmniejsz odstępy wewnętrzne komórek */
+            }
           `;
           document.head.appendChild(style);
 
@@ -344,7 +351,6 @@
               const columns = [];
               const columnLabels = {
                   'Name': 'Name',
-                  'Tag': 'Tag',
                   'Grade': 'Grade',
                   'Review': 'Review',
                   'Date': 'Date'
@@ -355,7 +361,7 @@
 
               // Uwaga: 'Date' nie było w Twoim oryginalnym `columnLabels`
               // Upewnij się, że `Created` to faktycznie 'Date' jeśli chcesz to zmienić w kodzie
-              const desiredOrder = ['Name', 'Tag', 'Grade', 'Review', 'Date'];
+              const desiredOrder = ['Name', 'Grade', 'Review', 'Date'];
 
 
               desiredOrder.forEach(key => {
@@ -435,7 +441,7 @@
                         // Definicja nagłówków dla eksportu.
                         // Ważne: Kolejność tutaj określa kolejność kolumn w Excelu.
                         // Jeśli chcesz 'ID' jako pierwszą kolumnę, umieść ją na początku.
-                        const exportHeaders = ['ID', 'Name', 'Tag', 'Grade', 'Review', 'Date']; // Zmienione na 'Last ascend' zamiast 'Date'
+                        const exportHeaders = ['ID', 'Name', 'Grade', 'Review', 'Date']; // Zmienione na 'Last ascend' zamiast 'Date'
 
                         dataToExport.push(exportHeaders);
 

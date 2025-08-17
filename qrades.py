@@ -169,7 +169,7 @@ def all_ascends_by_user(user_id):
                 'full_route_id': {'$toString': '$route_id'},  # <-- Dodaj to pole
                 #'_id': '$route_id',
                 'Name': { '$concat': [{'$substrCP': [{'$toString': '$route_info.name'}, 0, 7]}, '...'] },  # Nazwa trasy
-                'Tag': { '$toString': '$route_info.tag'},  # Nazwa trasy
+                #'Tag': { '$toString': '$route_info.tag'},  # Nazwa trasy
                 'Grade': '$grade',  # Najczęściej występująca ocena z wpisów
                 'Review': {'$round': ['$review', 1]},  # Średnia recenzja, zaokrąglona do 1 miejsca po przecinku
                 'Date': {
