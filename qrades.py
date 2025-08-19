@@ -1082,7 +1082,7 @@ def add_ascend():
     # Ustaw 'setter' tylko jeśli go brakuje lub jest pusty
     if user and (not current_route_doc or not current_route_doc.get('setter')):
         route_update_data['setter'] = user
-    if grade:
+    if grade and (not current_route_doc or not current_route_doc.get('grade')):
         route_update_data['grade'] = grade
 
     if route_update_data:
